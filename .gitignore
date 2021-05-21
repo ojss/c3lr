@@ -1,3 +1,6 @@
 data/
 .ipynb_checkpoints/
+.vscode/
 lightning_logs/
+umtra/
+__pycache__/
