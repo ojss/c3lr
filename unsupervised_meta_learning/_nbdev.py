@@ -3,11 +3,25 @@
 __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
 index = {"Flatten": "01_nn_utils.ipynb",
-         "conv_block": "03_cactus.ipynb",
-         "ProtoNet": "03_cactus.ipynb"}
+         "conv3x3": "01_nn_utils.ipynb",
+         "get_proto_accuracy": "01_nn_utils.ipynb",
+         "conv_block": "03_protonet.ipynb",
+         "ProtoNet": "03_protonet.ipynb",
+         "PrototypicalNetwork": "03_protonet.ipynb",
+         "get_num_samples": "03_protonet.ipynb",
+         "get_prototypes": "03_protonet.ipynb",
+         "prototypical_loss": "03_protonet.ipynb",
+         "proto_train": "03_protonet.ipynb",
+         "Partition": "04_cactus.ipynb",
+         "CactusTaskLoader": "04_cactus.ipynb",
+         "get_partition_kmeans": "04_cactus.ipynb",
+         "DataOpt": "04_cactus.ipynb",
+         "LoaderOpt": "04_cactus.ipynb",
+         "load": "04_cactus.ipynb"}
 
 modules = ["nn_utils.py",
            "maml.py",
+           "protonets.py",
            "cactus.py"]
 
 doc_url = "https://ojss.github.io/unsupervised_meta_learning/"
