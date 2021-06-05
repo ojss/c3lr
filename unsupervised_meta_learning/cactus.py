@@ -20,7 +20,6 @@ import tqdm
 
 from collections import OrderedDict
 from functools import partial
-from PIL import Image
 from torchmeta.datasets.helpers import miniimagenet, omniglot
 from torchmeta.utils.data import BatchMetaDataLoader
 from torchmeta.utils.gradient_based import gradient_update_parameters
