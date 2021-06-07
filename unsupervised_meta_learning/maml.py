@@ -83,14 +83,23 @@ def get_accuracy(logits, targets):
 
 # Cell
 class MAML(pl.LightningModule):
-    def __init__(self, model):
+    def __init__(self, model, inner_steps=1):
         super().__init__()
         self.model = model
         self.accuracy = get_accuracy
         self.automatic_optimization = False
+        self.inner_steps = inner_steps
 
     def forward(self, x):
         return self.model(x)
+
+    def inner_loop(self, fmodel, diffopt, train_input, train_target):
+        train_logit = fmodel(train_input)
+        inner_loss = F.cross_entropy(train_logit, train_target)
+        diffopt.step(inner_loss)
+
+        return inner_loss.item()
+
     def training_step(self, batch, batch_idx, optimizer_idx):
         meta_optimizer, inner_optimizer = self.optimizers()
         meta_optimizer = meta_optimizer.optimizer
@@ -109,10 +118,12 @@ class MAML(pl.LightningModule):
         ):
 #             inner_optimizer.zero_grad()
             with higher.innerloop_ctx(self.model, inner_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
-                train_logit = fmodel(train_input)
-                inner_loss = F.cross_entropy(train_logit, train_target)
+#                 train_logit = fmodel(train_input)
+#                 inner_loss = F.cross_entropy(train_logit, train_target)
 
-                diffopt.step(inner_loss)
+#                 diffopt.step(inner_loss)
+                for step in range(self.inner_steps):
+                    self.inner_loop(fmodel, diffopt, train_input, train_target)
 
                 test_logit = fmodel(test_input)
                 outer_loss += F.cross_entropy(test_logit, test_target)
