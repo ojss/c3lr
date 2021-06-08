@@ -41,11 +41,12 @@ index = {"c_imshow": "01_nn_utils.ipynb",
          "PrototypicalNetwork": "03_protonet_pl.ipynb",
          "ProtoModule": "03_protonet_pl.ipynb",
          "Partition": "04_cactus.ipynb",
-         "CactusTaskLoader": "04_cactus.ipynb",
-         "get_partition_kmeans": "04_cactus.ipynb",
+         "CactusTaskDataset": "04_cactus.ipynb",
+         "get_partitions_kmeans": "04_cactus.ipynb",
          "DataOpt": "04_cactus.ipynb",
          "LoaderOpt": "04_cactus.ipynb",
-         "load": "04_cactus.ipynb"}
+         "load": "04_cactus.ipynb",
+         "CactusDataModule": "04_cactus.ipynb"}
 
 modules = ["nn_utils.py",
            "pl_dataloaders.py",

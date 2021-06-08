@@ -100,7 +100,8 @@ class MAML(pl.LightningModule):
 
         return inner_loss.item()
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    @torch.enable_grad()
+    def meta_learn(self, batch, batch_idx, optimizer_idx=None):
         meta_optimizer, inner_optimizer = self.optimizers()
         meta_optimizer = meta_optimizer.optimizer
         inner_optimizer = inner_optimizer.optimizer
@@ -144,11 +145,38 @@ class MAML(pl.LightningModule):
 
         meta_optimizer.zero_grad()
 #         outer_loss.backward()
-
         self.manual_backward(outer_loss, meta_optimizer)
         meta_optimizer.step()
+        return outer_loss, acc
 
-        return outer_loss
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        train_loss, acc = self.meta_learn(batch, batch_idx, optimizer_idx)
+
+        self.log_dict({
+            'train_loss': train_loss.item(),
+            'train_accuracy': acc.item()
+        }, prog_bar=True)
+
+        return train_loss.item()
+
+    def validation_step(self, batch, batch_idx):
+        val_loss, val_acc = self.meta_learn(batch, batch_idx)
+
+        self.log_dict({
+            'val_loss': val_loss.item(),
+            'val_accuracy': val_acc.item()
+        })
+        return val_loss.item()
+
+    def test_step(self, batch, batch_idx):
+        test_loss, test_acc = self.meta_learn(batch, batch_idx)
+        self.log_dict({
+            'test_loss': test_loss.item(),
+            'test_accuracy': test_acc.item()
+        })
+        return test_loss.item()
+
 
     def configure_optimizers(self):
         meta_optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -169,6 +197,7 @@ class UMTRA(pl.LightningModule):
 
     def forward(self, x):
         return self.model(x)
+
     def training_step(self, batch, batch_idx, optimizer_idx):
         meta_optimizer, inner_optimizer = self.optimizers()
         meta_optimizer = meta_optimizer.optimizer

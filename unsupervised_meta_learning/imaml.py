@@ -57,7 +57,7 @@ class iMAML(pl.LightningModule):
         self.val_loss = val_loss.item()
         pred = o.argmax(dim=1, keepdim=True)
         self.val_acc = pred.eq(self.tst_y.view_as(pred)).sum().item() / len(self.tst_y)
-        return self.val_loss
+        return val_loss
 
 
     def get_inner_opt(self, train_loss, kwargs):
@@ -70,16 +70,13 @@ class iMAML(pl.LightningModule):
             params_history.append(optim(params_history[-1], hparams, create_graph=create_graph))
             self.log('loss', optim.curr_loss.item(), on_step=True, prog_bar=True, logger=True)
 
-#             if log_interval and (t % log_interval == 0 or t == n_steps-1):
-#                 print('t={}, Loss: {:.6f}'.format(t, optim.curr_loss.item()))
-
-
         return params_history
 
     def configure_optimizers(self):
         outer_opt = torch.optim.Adam(params=self.model.parameters(), lr=1e-3)
         return outer_opt
 
+    @torch.enable_grad()
     def meta_learn(self, batch, batch_idx):
         meta_optimizer = self.optimizers()
         meta_optimizer = meta_optimizer.optimizer
@@ -121,27 +118,26 @@ class iMAML(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         train_loss, train_acc = self.meta_learn(batch, batch_idx)
-
         self.log_dict({
-            'train_loss': train_loss,
-            'train_accuracy': train_acc.item()
-        }, prog_bar=True)
+            'tr_accuracy': train_acc.item(),
+            'tr_loss': train_loss.item()
+        }, prog_bar=True, logger=True)
+        return {'tr_loss': train_loss.item(), 'tr_acc': train_acc.item()}
 
-        return val_loss
 
     def validation_step(self, batch, batch_idx):
         val_loss, val_acc = self.meta_learn(batch, batch_idx)
 
         self.log_dict({
-            'val_loss': val_loss,
+            'val_loss': val_loss.item(),
             'val_accuracy': val_acc.item()
         })
-        return -1
+        return val_loss.item()
 
     def test_step(self, batch, batch_idx):
         test_loss, test_acc = self.meta_learn(batch, batch_idx)
         self.log_dict({
-            'test_loss': test_loss,
+            'test_loss': test_loss.item(),
             'test_accuracy': test_acc.item()
         })
-        return -1
+        return test_loss.item()
