@@ -83,12 +83,14 @@ def get_accuracy(logits, targets):
 
 # Cell
 class MAML(pl.LightningModule):
-    def __init__(self, model, inner_steps=1):
+    def __init__(self, model, outer_lr, inner_lr, inner_steps=1):
         super().__init__()
         self.model = model
         self.accuracy = get_accuracy
         self.automatic_optimization = False
         self.inner_steps = inner_steps
+        self.outer_lr = outer_lr
+        self.inner_lr = inner_lr
 
     def forward(self, x):
         return self.model(x)
@@ -179,21 +181,21 @@ class MAML(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        meta_optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        inner_optimizer = torch.optim.SGD(self.parameters(), lr=1e-1)
+        meta_optimizer = torch.optim.Adam(self.parameters(), lr=self.outer_lr)
+        inner_optimizer = torch.optim.SGD(self.parameters(), lr=self.inner_lr)
 
         return [meta_optimizer, inner_optimizer]
 
-
-
 # Cell
 class UMTRA(pl.LightningModule):
-    def __init__(self, model, augmentation, inner_steps):
+    def __init__(self, model, augmentation, inner_steps, inner_lr, outer_lr):
         super().__init__()
         self.model = model
         self.accuracy = get_accuracy
         self.augmentation = augmentation
         self.inner_steps = inner_steps
+        self.inner_lr = inner_lr
+        self.outer_lr = outer_lr
         self.automatic_optimization = False
 
     def forward(self, x):
@@ -206,8 +208,11 @@ class UMTRA(pl.LightningModule):
 
         return inner_loss.item()
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    @torch.enable_grad()
+    def meta_learn(self, batch, batch_idx, inner_copied_optimizer=None, optimizer_idx=None):
         meta_optimizer, inner_optimizer = self.optimizers(use_pl_optimizer=False)
+        inner_optimizer = inner_optimizer if inner_copied_optimizer is None else inner_copied_optimizer
+
         train_inputs, train_targets = batch['train']
         test_inputs, test_targets = batch['test']
 
@@ -234,10 +239,6 @@ class UMTRA(pl.LightningModule):
 
         outer_loss.div_(batch_size)
         acc.div_(batch_size)
-        self.log_dict({
-                    'outer_loss': outer_loss,
-                    'accuracy': acc
-                }, prog_bar=True)
 
         meta_optimizer.zero_grad()
 #         outer_loss.backward()
@@ -245,10 +246,39 @@ class UMTRA(pl.LightningModule):
         self.manual_backward(outer_loss, meta_optimizer)
         meta_optimizer.step()
 
-        return outer_loss
+        return outer_loss, acc
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        train_loss, acc = self.meta_learn(batch, batch_idx, optimizer_idx=optimizer_idx)
+
+        self.log_dict({
+            'train_loss': train_loss.item(),
+            'train_accuracy': acc.item()
+        }, prog_bar=True)
+
+        return train_loss.item()
+
+    def validation_step(self, batch, batch_idx):
+        val_loss, val_acc = self.meta_learn(batch, batch_idx)
+        self.log_dict({
+            'val_loss': val_loss.item(),
+            'val_accuracy': val_acc.item()
+        })
+        return val_loss.item()
+
+    def test_step(self, batch, batch_idx):
+        self.model.train()
+        test_loss, test_acc = self.meta_learn(batch, batch_idx)
+
+        self.log_dict({
+            'test_loss': test_loss.item(),
+            'test_accuracy': test_acc.item()
+        })
+        return test_loss.item()
+
 
     def configure_optimizers(self):
-        meta_optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        inner_optimizer = torch.optim.SGD(self.parameters(), lr=1e-1)
+        meta_optimizer = torch.optim.Adam(self.parameters(), lr=self.outer_lr)
+        inner_optimizer = torch.optim.SGD(self.parameters(), lr=self.inner_lr)
 
         return [meta_optimizer, inner_optimizer]

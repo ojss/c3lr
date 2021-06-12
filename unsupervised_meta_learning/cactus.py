@@ -151,7 +151,7 @@ def get_partitions_kmeans(encodings, n_way, n_shot, n_query, random_scaling=True
 @dataclass
 class DataOpt:
     dataset: str = 'omniglot'
-    encoder='bigan'
+    encoder='acai'
     test_way: int = None
     way: int = 5
     test_shot: int = None

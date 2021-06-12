@@ -42,15 +42,22 @@ class PrototypicalNetwork(nn.Module):
 
 # Cell
 class ProtoModule(pl.LightningModule):
-    def __init__(self, encoder, num_classes, **kwargs):
+    def __init__(self, encoder, num_classes, cactus_flag, **kwargs):
         super().__init__()
         self.model = encoder
         self.automatic_optimization = True
         self.num_classes_per_task = num_classes
         self.acccuracy = get_proto_accuracy
+        self.cactus_flag = cactus_flag
 
     def forward(self, x):
         return self.model(x)
+
+    def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
+        if !self.cactus_flag:
+            return
+        tr_x = batch['train']
+        tst_x = batch['test']
 
     def get_prototypes(self, emb, targets, num_classes):
         """Compute the prototypes (the mean vector of the embedded training/support
