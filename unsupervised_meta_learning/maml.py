@@ -188,21 +188,26 @@ class MAML(pl.LightningModule):
 
 # Cell
 class UMTRA(pl.LightningModule):
-    def __init__(self, model, augmentation):
+    def __init__(self, model, augmentation, inner_steps):
         super().__init__()
         self.model = model
         self.accuracy = get_accuracy
         self.augmentation = augmentation
+        self.inner_steps = inner_steps
         self.automatic_optimization = False
 
     def forward(self, x):
         return self.model(x)
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        meta_optimizer, inner_optimizer = self.optimizers()
-        meta_optimizer = meta_optimizer.optimizer
-        inner_optimizer = inner_optimizer.optimizer
+    def inner_loop(self, fmodel, diffopt, train_input, train_target):
+        train_logit = fmodel(train_input)
+        inner_loss = F.cross_entropy(train_logit, train_target)
+        diffopt.step(inner_loss)
 
+        return inner_loss.item()
+
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        meta_optimizer, inner_optimizer = self.optimizers(use_pl_optimizer=False)
         train_inputs, train_targets = batch['train']
         test_inputs, test_targets = batch['test']
 
@@ -214,26 +219,18 @@ class UMTRA(pl.LightningModule):
         for task_idx, (train_input, train_target, test_input, test_target) in enumerate(
             zip(train_inputs, train_targets, test_inputs, test_targets)
         ):
-#             inner_optimizer.zero_grad()
             val_input = self.augmentation(train_input).to(self.device)
             val_target = deepcopy(train_target).to(self.device)
             with higher.innerloop_ctx(self.model, inner_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
-                train_logit = fmodel(train_input)
-                inner_loss = F.cross_entropy(train_logit, train_target)
-
-                diffopt.step(inner_loss)
+                for step in range(self.inner_steps):
+                    self.inner_loop(fmodel, diffopt, train_input, train_target)
 
                 val_logits = fmodel(val_input)
                 outer_loss += F.cross_entropy(val_logits, val_target)
-#                 test_logit = fmodel(test_input)
-#                 outer_loss += F.cross_entropy(test_logit, test_target)
 
                 with torch.no_grad():
                     test_logits = fmodel(test_input)
                     acc += self.accuracy(test_logits, test_target)
-
-
-#                     self.print(self.accuracy(test_logit, test_target))
 
         outer_loss.div_(batch_size)
         acc.div_(batch_size)

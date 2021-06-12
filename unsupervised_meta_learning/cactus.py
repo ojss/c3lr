@@ -28,8 +28,10 @@ from functools import partial
 from torch.utils.data import Dataset, DataLoader
 
 from torchnet.dataset import ListDataset, TransformDataset
-
+from torchmeta.utils.data import BatchMetaDataLoader
 from sklearn.cluster import KMeans
+
+from .nn_utils import c_imshow
 
 # Cell
 class Partition():
@@ -66,6 +68,9 @@ class CactusTaskDataset(Dataset):
 
     def __len__(self):
         return self.length
+
+    def __getitem__(self, idx):
+        return self.__next__()
 
     def __next__(self):
         if self.iter == self.length:
@@ -228,16 +233,50 @@ def load(opt:LoaderOpt, splits, data_dir):
 
 # Cell
 class CactusDataModule(pl.LightningDataModule):
-    def __init__(self, use_precomputed=False, precomputed_partition_path=None, dataset='omniglot'):
+    def __init__(self,
+                 ways,
+                 shots,
+                 query,
+                 train_mode='kmeans',
+                 train_episodes=100,
+                 partitions=100,
+                 clusters=500,
+                 batch_size=1,
+                 use_precomputed=False,
+                 precomputed_partition_path=None,
+                 dataset='omniglot'):
         self.use_precomputed = use_precomputed
         self.precomputed_partition_path = precomputed_partition_path
         self.dataset = dataset
+        self.ways = ways
+        self.shots = shots
+        self.query_shots = query
+        self.train_mode = train_mode
+        self.train_episodes = train_episodes
+        self.partitions = partitions
+        self.clusters = clusters
 
     def setup(self):
-        pass
+        self.data_opt = DataOpt(
+            dataset=self.dataset,
+            way=self.ways,
+            shot=self.shots,
+            query=self.query_shots,
+            train_mode=self.train_mode,
+            train_episodes=self.train_episodes,
+            partitions=self.partitions,
+            clusters=self.clusters
+        )
+        self.loader_opt = LoaderOpt(data=dummy)
+        self.train_ds = torchnet.dataset.TransformDataset(torchnet.dataset.BatchDataset(r['train'], self.batch_size),
+                                 lambda x: {'train': x['train'].squeeze(2),
+                                            'test': x['test'].view(self.batch_size, -1, 1, 28, 28)
+                                           })
 
     def train_dataloader(self):
-        pass
+        return DataLoader(
+            self.train_ds
+        )
 
     def val_dataloader(self):
         pass
