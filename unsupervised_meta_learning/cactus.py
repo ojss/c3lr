@@ -7,8 +7,9 @@ __all__ = ['Partition', 'CactusTaskDataset', 'get_partitions_kmeans', 'DataOpt',
 #export
 import os
 import tempfile
+import warnings
+import pickle
 
-from dataclasses import dataclass
 import kornia as K
 
 import numpy as np
@@ -25,6 +26,8 @@ from tqdm.auto import tqdm
 
 from collections import OrderedDict, defaultdict
 from functools import partial
+from dataclasses import dataclass
+
 from torch.utils.data import Dataset, DataLoader
 
 from torchnet.dataset import ListDataset, TransformDataset
@@ -32,6 +35,7 @@ from torchmeta.utils.data import BatchMetaDataLoader
 from sklearn.cluster import KMeans
 
 from .nn_utils import c_imshow
+from .protonets import CactusPrototypicalModel, ProtoModule
 
 # Cell
 class Partition():
@@ -244,7 +248,13 @@ class CactusDataModule(pl.LightningDataModule):
                  batch_size=1,
                  use_precomputed=False,
                  precomputed_partition_path=None,
-                 dataset='omniglot'):
+                 load_from_pkl=False,
+                 pkl_path='saved_op/partitions.pkl',
+                 dataset='omniglot',
+                 emb_data_dir='data/cactus_data/'):
+
+        super().__init__()
+
         self.use_precomputed = use_precomputed
         self.precomputed_partition_path = precomputed_partition_path
         self.dataset = dataset
@@ -255,25 +265,44 @@ class CactusDataModule(pl.LightningDataModule):
         self.train_episodes = train_episodes
         self.partitions = partitions
         self.clusters = clusters
+        self.load_from_pkl = load_from_pkl
+        self.pkl_path = pkl_path
+        self.emb_data_dir = emb_data_dir
+        self.batch_size = batch_size
 
-    def setup(self):
-        self.data_opt = DataOpt(
-            dataset=self.dataset,
-            way=self.ways,
-            shot=self.shots,
-            query=self.query_shots,
-            train_mode=self.train_mode,
-            train_episodes=self.train_episodes,
-            partitions=self.partitions,
-            clusters=self.clusters
-        )
-        self.loader_opt = LoaderOpt(data=dummy)
-        self.train_ds = torchnet.dataset.TransformDataset(torchnet.dataset.BatchDataset(r['train'], self.batch_size),
-                                 lambda x: {'train': x['train'].squeeze(2),
-                                            'test': x['test'].view(self.batch_size, -1, 1, 28, 28)
+
+    def setup(self, stage=None):
+        if not self.load_from_pkl:
+            # normal running
+            self.data_opt = DataOpt(
+                dataset=self.dataset,
+                way=self.ways,
+                shot=self.shots,
+                query=self.query_shots,
+                train_mode=self.train_mode,
+                train_episodes=self.train_episodes,
+                partitions=self.partitions,
+                clusters=self.clusters
+            )
+
+            self.loader_opt = LoaderOpt(data=self.data_opt)
+            self.ds = load(self.loader_opt,
+                           ['train'],
+                           data_dir=self.emb_data_dir)
+
+        else:
+            # when I don't have enough compute
+            with open(self.pkl_path, 'rb') as f:
+                self.ds = pickle.load(f)
+
+        # the batch dim is manually handled here
+        self.train_ds = torchnet.dataset.TransformDataset(self.ds['train'],
+                                 lambda x: {'train': x['train'],
+                                            'test': x['test']
                                            })
 
     def train_dataloader(self):
+        # default batch_size = 1, batch dim is handled in setup of train_ds
         return DataLoader(
             self.train_ds
         )
