@@ -162,8 +162,8 @@ class DataOpt:
     shot: int = 1
     test_query: int = None
     query: int = 15
-    test_episodes: int = None
-    test_mode:int = None
+    test_episodes: int = 100
+    test_mode:int = 'ground_truth'
     partitions:int = 100
     clusters:int = 500
     train_mode: str = 'kmeans'
@@ -243,36 +243,48 @@ class CactusDataModule(pl.LightningDataModule):
                  query,
                  train_mode='kmeans',
                  train_episodes=100,
+                 test_way=5,
+                 test_shot=1,
+                 test_query=5,
+                 test_mode='ground_truth',
+                 test_episodes=100,
                  partitions=100,
                  clusters=500,
                  batch_size=1,
-                 use_precomputed=False,
-                 precomputed_partition_path=None,
-                 load_from_pkl=False,
-                 pkl_path='saved_op/partitions.pkl',
+                 use_precomputed_partitions=False,
+                 precomputed_partition_path='saved_op/partitions.pkl',
                  dataset='omniglot',
                  emb_data_dir='data/cactus_data/'):
 
         super().__init__()
 
-        self.use_precomputed = use_precomputed
+        self.use_precomputed_partitions = use_precomputed_partitions
         self.precomputed_partition_path = precomputed_partition_path
+
         self.dataset = dataset
         self.ways = ways
         self.shots = shots
         self.query_shots = query
         self.train_mode = train_mode
         self.train_episodes = train_episodes
+
+        self.test_way = test_way
+        self.test_query = test_query
+        self.test_shot = test_shot
+        self.test_mode = test_mode
+        self.test_episodes = test_episodes
+
         self.partitions = partitions
         self.clusters = clusters
-        self.load_from_pkl = load_from_pkl
-        self.pkl_path = pkl_path
+
+        self.use_precomputed_partitions = use_precomputed_partitions
+        self.precomputed_partition_path= precomputed_partition_path
         self.emb_data_dir = emb_data_dir
         self.batch_size = batch_size
 
 
     def setup(self, stage=None):
-        if not self.load_from_pkl:
+        if not self.use_precomputed_partitions:
             # normal running
             self.data_opt = DataOpt(
                 dataset=self.dataset,
@@ -292,14 +304,13 @@ class CactusDataModule(pl.LightningDataModule):
 
         else:
             # when I don't have enough compute
-            with open(self.pkl_path, 'rb') as f:
+            with open(self.precomputed_partition_path, 'rb') as f:
                 self.ds = pickle.load(f)
 
+        if 'val' in self.ds:
+            self.val_ds = self.ds['val']
         # the batch dim is manually handled here
-        self.train_ds = torchnet.dataset.TransformDataset(self.ds['train'],
-                                 lambda x: {'train': x['train'],
-                                            'test': x['test']
-                                           })
+        self.train_ds = self.ds['train']
 
     def train_dataloader(self):
         # default batch_size = 1, batch dim is handled in setup of train_ds
@@ -308,7 +319,9 @@ class CactusDataModule(pl.LightningDataModule):
         )
 
     def val_dataloader(self):
-        pass
+        return DataLoader(
+            self.val_ds
+        )
 
     def test_dataloader(self):
         pass

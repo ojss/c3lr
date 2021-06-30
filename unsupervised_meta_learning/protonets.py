@@ -18,6 +18,8 @@ import torchvision
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 
+from operator import itemgetter
+
 from .nn_utils import Flatten, get_proto_accuracy, conv3x3
 from .pl_dataloaders import OmniglotDataModule
 
@@ -113,24 +115,6 @@ class ProtoModule(pl.LightningModule):
             num_samples.scatter_add_(1, targets, ones)
         return num_samples
 
-
-    def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
-        if not self.cactus_flag:
-            return batch, batch_idx
-
-        xs = batch['train'] # support
-        xq = batch['test'] # query
-
-        xs.squeeze_(0)
-        xq.squeeze_(0)
-
-        batch['train'] = xs
-        batch['test'] = xq
-
-        return batch, batch_idx
-
-
-
     def protoypical_loss(self, prototypes, emb, targets, **kwargs):
         """Compute the loss (i.e. negative log-likelihood) for the prototypical
         network, on the test/query points.
@@ -203,6 +187,10 @@ class ProtoModule(pl.LightningModule):
         return torch.pow(x - y, 2).sum(2)
 
     def cactus_training_step(self, sample, sample_idx):
+
+        # Training step CACTUS-ProtoNets, differs from above default supervised loop
+        # TODO: check if both above and below can be merged into one common step
+
         xs = sample['train'] # support
         xq = sample['test'] # query
 
@@ -235,10 +223,68 @@ class ProtoModule(pl.LightningModule):
         _, y_hat = log_p_y.max(2)
         acc_val = torch.eq(y_hat, target_inds.squeeze()).float().mean()
 
-        self.log_dict({
-            'loss': loss_val.item(),
+        res = {
+            'loss': loss_val,
             'acc': acc_val.item()
-        }, prog_bar=True)
+        }
 
-        return loss_val
+        if self.training:
+            self.log_dict({
+                'loss': loss_val.item(),
+                'train_acc': acc_val.item()
+            }, prog_bar=True)
 
+        return res
+
+    def validation_step(self, batch, batch_idx):
+
+        if self.cactus_flag:
+            self.trainer.datamodule.val_dataloader().dataset.reset()
+            loss, acc = itemgetter('loss', 'acc')(self.cactus_training_step(batch, batch_idx))
+
+            self.log_dict({
+                'val_loss': loss.item(), 'val_acc': acc
+            }, prog_bar=True)
+        else:
+            return -1
+
+    def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
+        if not self.cactus_flag:
+            # this branch should only execute if using normal supervised ProtoNets
+            return batch, batch_idx
+
+
+        # everything below this point is for fixing the batch dimension
+        # for the cactus version of protonets
+
+        xs = batch['train'] # support
+        xq = batch['test'] # query
+
+        xs.squeeze_(0)
+        xq.squeeze_(0)
+
+        batch['train'] = xs
+        batch['test'] = xq
+
+        return batch, batch_idx
+
+
+    def on_train_epoch_end(self, unused=None):
+        # doesn't matter if it is a new dataloader object
+        # it still points to the same dataset and will correctly hit reset on it
+        self.trainer.datamodule.train_dataloader().dataset.reset()
+
+    def on_validation_batch_start(self, batch, batch_idx, dataloader_idx):
+        if not self.cactus_flag:
+            return batch, batch_idx
+
+        xs = batch['train'] # support
+        xq = batch['test'] # query
+
+        xs.squeeze_(0)
+        xq.squeeze_(0)
+
+        batch['train'] = xs
+        batch['test'] = xq
+
+        return batch, batch_idx
