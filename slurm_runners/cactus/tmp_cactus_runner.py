@@ -29,7 +29,7 @@ def load_protonet_conv(**kwargs):
     )
     return encoder
 
-dm = CactusDataModule(ways=20, shots=1, query=15, use_precomputed_partitions=True)
+dm = CactusDataModule(ways=20, shots=1, query=15, use_precomputed_partitions=False)
 model = ProtoModule(encoder=CactusPrototypicalModel(in_channels=1, hidden_size=64), num_classes=20, lr=1e-3, cactus_flag=True)
 
 logger = WandbLogger(

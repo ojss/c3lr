@@ -285,6 +285,7 @@ class CactusDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         if not self.use_precomputed_partitions:
+            print("Computing partitions")
             # normal running
             self.data_opt = DataOpt(
                 dataset=self.dataset,
@@ -293,13 +294,18 @@ class CactusDataModule(pl.LightningDataModule):
                 query=self.query_shots,
                 train_mode=self.train_mode,
                 train_episodes=self.train_episodes,
+                test_shot=self.test_shot,
+                test_way=self.test_way,
+                test_query=self.test_query,
+                test_episodes=self.test_episodes,
+                test_mode=self.test_mode,
                 partitions=self.partitions,
                 clusters=self.clusters
             )
 
             self.loader_opt = LoaderOpt(data=self.data_opt)
             self.ds = load(self.loader_opt,
-                           ['train'],
+                           ['train', 'val'],
                            data_dir=self.emb_data_dir)
 
         else:
