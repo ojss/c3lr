@@ -38,6 +38,6 @@ module load miniconda/3.9
 # Complex or heavy commands should be started with 'srun' (see 'man srun' for more information)
 # For example: srun python my_program.py
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
-srun hostname
+
 source activate /home/nfs/oshirekar/unsupervised_ml/ai
-python tmp_cactus_runner.py
+srun python tmp_cactus_runner.py

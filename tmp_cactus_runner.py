@@ -29,7 +29,7 @@ def load_protonet_conv(**kwargs):
     )
     return encoder
 
-dm = CactusDataModule(ways=20, shots=1, query=15, use_precomputed_partitions=False)
+dm = CactusDataModule(ways=20, shots=1, query=15, use_precomputed_partitions=False, emb_data_dir='/home/nfs/oshirekar/unsupervised_ml/data/cactus_data')
 model = ProtoModule(encoder=CactusPrototypicalModel(in_channels=1, hidden_size=64), num_classes=20, lr=1e-3, cactus_flag=True)
 
 logger = WandbLogger(
@@ -41,7 +41,8 @@ logger = WandbLogger(
         'cactus': True,
         'pre-loaded-partitions': True,
         'partitions': 1
-    }
+    },
+    log_model=True
 )
 
 
@@ -55,11 +56,15 @@ trainer = pl.Trainer(
         check_val_every_n_epoch=1,
         flush_logs_every_n_steps=1,
         num_sanity_val_steps=2,
-        logger=logger
+        logger=logger,
+	default_root_dir='/home/nfs/oshirekar/unsupervised_ml/cactus_chkpnts/',
+	checkpoint_callback=True
     )
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     trainer.fit(model, datamodule=dm)
+
+trainer.save_checkpoint('final.ckpt')
 
 wandb.finish()
