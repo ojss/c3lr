@@ -1,23 +1,5 @@
 #!/bin/bash
 
-while getopts a:w:s:e:p:h flag
-do
-    case "${flag}" in
-        a) algorithm=${OPTARG};;
-        w) n_ways=${OPTARG};;
-        s) n_shots=${OPTARG};;
-        e) emb=${OPTARG};;
-        p) precomputed=${OPTARG};;
-        h) help=1;;
-        \?) ;;
-    esac
-done
-
-if [[ "${help}" -eq 1 ]] ; then
-    python runner.py $algorithm -h
-    exit
-fi
-
 #SBATCH --gres=gpu
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
@@ -48,14 +30,15 @@ fi
 # 90 seconds before training ends
 #SBATCH --signal=SIGUSR1@90
 
-# module use /opt/insy/modulefiles
+module use /opt/insy/modulefiles
 
-# module load cuda/11.1 cudnn/11.1-8.0.5.39
-# module load miniconda/3.9
+module load cuda/11.1 cudnn/11.1-8.0.5.39
+module load miniconda/3.9
 
-# # Complex or heavy commands should be started with 'srun' (see 'man srun' for more information)
-# # For example: srun python my_program.py
-# # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
+# Complex or heavy commands should be started with 'srun' (see 'man srun' for more information)
+# For example: srun python my_program.py
+# Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
-# source activate /home/nfs/oshirekar/unsupervised_ml/ai
-python runner.py $algorithm --emb_data_dir="${emb}" --n_ways=$n_ways --n_shots=$n_shots --use_precomputed_partitions=$precomputed
+source activate /home/nfs/oshirekar/unsupervised_ml/ai
+srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=20 --n_shots=1 --use_precomputed_partitions=False
+
