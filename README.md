@@ -2,10 +2,10 @@
 
 - [x] MAML
 
-- [ ] ProtoNets
+- [x] ProtoNets
 
 - [x] UMTRA
 
-- [ ] CACTUS-MAML
+- [x] CACTUS-MAML
 
-- [ ] CACTUS-ProtoNets
+- [x] CACTUS-ProtoNets
