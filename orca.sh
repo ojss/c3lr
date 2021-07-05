@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu
+#SBATCH --gres=gpu:turing
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -11,7 +11,7 @@
 #SBATCH --qos=short
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=02:01:00
+#SBATCH --time=01:30:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -40,5 +40,5 @@ module load miniconda/3.9
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai
-srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=20 --n_shots=1 --use_precomputed_partitions=False
+srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
