@@ -1,3 +1,4 @@
 **/*.ipynb filter=clean-nbs
 **/*.ipynb diff=ipynb
 partitions.pkl filter=lfs diff=lfs merge=lfs -text
+*.tar.gz filter=lfs diff=lfs merge=lfs -text

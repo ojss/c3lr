@@ -1,5 +1,5 @@
 wandb/
-data/
+data/untarred/*
 .ipynb_checkpoints/
 .vscode/
 lightning_logs/
