@@ -27,7 +27,7 @@
 # Do not enable mails when submitting large numbers (>20) of jobs at once
 #SBATCH --mail-type=END
 
-# 90 seconds before training ends
+# 90 seconds before training ends, to help create a checkpoint and requeue the job
 #SBATCH --signal=SIGUSR1@90
 
 module use /opt/insy/modulefiles
