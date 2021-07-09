@@ -1,0 +1,32 @@
+name: ai
+channels:
+  - conda-forge
+  - pytorch-lts
+  - fastai
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.9.5
+  - mamba
+  - pip
+  - pytorch-lightning
+  - kornia
+  - matplotlib
+  - scikit-learn
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - jupyter
+  - ipywidgets
+  - jupyter_contrib_nbextensions
+  - jupyterlab
+  - nbdev
+  - wandb
+  - fire
+  - pip:
+          - torchmeta
+          - torchnet
+          - higher
+          - learn2learn 
+prefix: /home/ojas/anaconda3/envs/ai
