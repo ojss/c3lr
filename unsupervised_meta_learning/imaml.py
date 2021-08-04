@@ -18,7 +18,6 @@ from itertools import repeat
 
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 from .pl_dataloaders import OmniglotDataModule
-from .hessian_free import HessianFree
 from .nn_utils import get_accuracy
 from .maml import ConvolutionalNeuralNetwork
 
