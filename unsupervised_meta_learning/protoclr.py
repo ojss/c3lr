@@ -80,4 +80,3 @@ class ProtoCLR(pl.LightningModule):
         })
 
         return loss, accuracy
-
