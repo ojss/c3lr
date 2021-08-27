@@ -141,7 +141,7 @@ class CNN_4Layer(nn.Module):
             conv3x3(hidden_size, out_channels)
         )
 
-        self.unpool = nn.MaxUnpool2d(2)
+#         self.unpool = nn.MaxUnpool2d(2)
 
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(out_channels, hidden_size, kernel_size=3, padding=1),
@@ -154,6 +154,7 @@ class CNN_4Layer(nn.Module):
             nn.Sigmoid()
         )
     def forward(self, inputs):
-        embeddings, indices = self.encoder(inputs.view(-1, *inputs.shape[-3:]))
-        x = self.decoder(self.unpool(embeddings, indices))
+        embeddings = self.encoder(inputs.view(-1, *inputs.shape[-3:]))
+#         x = self.unpool(embeddings, indices)
+        x = self.decoder(embeddings)
         return embeddings.view(*inputs.shape[:-3], -1), x

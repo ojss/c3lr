@@ -29,12 +29,12 @@ class Flatten(nn.Module):
 
 # Cell
 
-def conv3x3(in_channels, out_channels, **kwargs):
+def conv3x3(in_channels, out_channels, return_indices=False, **kwargs):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, **kwargs),
         nn.BatchNorm2d(out_channels),
         nn.ReLU(),
-        nn.MaxPool2d(2)
+        nn.MaxPool2d(2) if return_indices == False else nn.MaxPool2d(2, return_indices=True)
     )
 
 # Cell
