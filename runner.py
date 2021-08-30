@@ -63,8 +63,8 @@ def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1,
     return 0
 
 
-def protoclr_ae():
-    dm = UnlabelledDataModule('omniglot', './data/untarred/', split='train', transform=None,
+def protoclr_ae(dataset, datapath):
+    dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                  seed=10, mode='trainval')
 
@@ -75,7 +75,7 @@ def protoclr_ae():
         config={
             'batch_size': 50,
             'steps': 100,
-            'dataset': "omniglot"
+            'dataset': dataset
         }
     )
     trainer = pl.Trainer(
