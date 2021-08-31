@@ -257,7 +257,7 @@ class ProtoCLR(pl.LightningModule):
             with torch.no_grad():
                 loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
         self.log_dict({
-            'val_loss': loss.item(),
+            'val_loss': loss.detach(),
             'val_accuracy': accuracy
         }, prog_bar=True)
 

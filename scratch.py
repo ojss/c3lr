@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import EarlyStopping
 from unsupervised_meta_learning.proto_utils import prototypical_loss, get_prototypes, CAE
 from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataModule, UnlabelledDataset
 from unsupervised_meta_learning.protoclr import ProtoCLR
@@ -26,12 +27,13 @@ logger = WandbLogger(
 )
 trainer = pl.Trainer(
         profiler='simple',
-        max_epochs=10000,
+        max_epochs=1,
         limit_train_batches=100,
         fast_dev_run=False,
         limit_val_batches=15,
         limit_test_batches=600,
-        num_sanity_val_steps=2, gpus=1, logger=logger
+        callbacks=[EarlyStopping(monitor="val_loss", patience=200, min_delta=.02)],
+        num_sanity_val_steps=2, gpus=1, #logger=logger
     )
 
 with warnings.catch_warnings():
