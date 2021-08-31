@@ -3,11 +3,13 @@ import argparse
 import warnings
 
 import fire
+from pytorch_lightning import callbacks
 import wandb
 import pytorch_lightning as pl
 
 from pathlib import Path
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import EarlyStopping
 from unsupervised_meta_learning.cactus import *
 from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataset, UnlabelledDataModule
 from unsupervised_meta_learning.proto_utils import CAE
@@ -85,7 +87,9 @@ def protoclr_ae(dataset, datapath):
             fast_dev_run=False,
             limit_val_batches=15,
             limit_test_batches=600,
-            num_sanity_val_steps=2, gpus=1, logger=logger
+            callbacks=[EarlyStopping(monitor="val_loss", patience=200, min_delta=.02)],
+            num_sanity_val_steps=2, gpus=1,
+            logger=logger
         )
 
     with warnings.catch_warnings():
