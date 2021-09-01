@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping
 from unsupervised_meta_learning.cactus import *
 from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataset, UnlabelledDataModule
-from unsupervised_meta_learning.proto_utils import CAE
+from unsupervised_meta_learning.proto_utils import CAE, CAE4L
 from unsupervised_meta_learning.protonets import ProtoModule, PrototypicalNetwork, CactusPrototypicalModel
 from unsupervised_meta_learning.protoclr import ProtoCLR
 
@@ -70,7 +70,7 @@ def protoclr_ae(dataset, datapath):
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                  seed=10, mode='trainval')
 
-    model = ProtoCLR(model=CAE(1, 64, hidden_size=64), n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
+    model = ProtoCLR(model=CAE4L(in_channels=1, out_channels=64, hidden_size=64), n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
 
     logger = WandbLogger(
         project='ProtoCLR+AE',
