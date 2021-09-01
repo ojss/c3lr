@@ -172,7 +172,9 @@ class ProtoCLR(pl.LightningModule):
         x_b_i = x_query_var
         x_a_i = x_support_var
         encoder.eval()
-        z_a_i = encoder(x_a_i.to(device))
+
+        # TODO: remove view add in network
+        z_a_i = encoder(x_a_i.to(device)) #.view(*x_a_i.shape[:-3], -1)
         encoder.train()
 
         # Define linear classifier
