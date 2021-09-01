@@ -65,10 +65,11 @@ def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1,
     return 0
 
 
-def protoclr_ae(dataset, datapath):
+def protoclr_ae(dataset, datapath, eval_ways=5, eval_support_shots=1, eval_query_shots=15):
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
-                 seed=10, mode='trainval')
+                 seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_query_shots, 
+                 eval_query_shots=eval_query_shots)
 
     model = ProtoCLR(model=CAE4L(in_channels=1, out_channels=64, hidden_size=64), n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
 
@@ -77,7 +78,10 @@ def protoclr_ae(dataset, datapath):
         config={
             'batch_size': 50,
             'steps': 100,
-            'dataset': dataset
+            'dataset': dataset,
+            'eval_ways': eval_ways,
+            'eval_support_shots': eval_support_shots,
+            'eval_query_shots': eval_query_shots
         }
     )
     trainer = pl.Trainer(
@@ -87,7 +91,7 @@ def protoclr_ae(dataset, datapath):
             fast_dev_run=False,
             limit_val_batches=15,
             limit_test_batches=600,
-            callbacks=[EarlyStopping(monitor="val_loss", patience=200, min_delta=.02)],
+            callbacks=[EarlyStopping(monitor="val_loss", patience=300, min_delta=.02)],
             num_sanity_val_steps=2, gpus=1,
             logger=logger
         )
