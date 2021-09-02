@@ -13,7 +13,8 @@ from unsupervised_meta_learning.protoclr import ProtoCLR
 
 dm = UnlabelledDataModule('omniglot', './data/untarred/', split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
-                 seed=10, mode='trainval')
+                 seed=10, mode='trainval', eval_ways=5, eval_support_shots=1, 
+                 eval_query_shots=15)
 
 model = ProtoCLR(model=CAE4L(in_channels=1, out_channels=64, hidden_size=64),
  n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
