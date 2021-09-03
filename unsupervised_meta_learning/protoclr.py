@@ -134,11 +134,14 @@ class ProtoCLR(pl.LightningModule):
         opt.zero_grad()
 
         loss, accuracy, r_supp, r_query = self.calculate_protoclr_loss(batch, ae=self.ae)
+        self.log('clr_loss', loss, prog_bar=True)
         # adding the pixelwise reconstruction loss at the end
         # it has been broadcasted such that each support source image is broadcasted thrice over the three
         # query set images - which are the augmentations of the support image
         if self.ae:
-            loss += self._get_pixelwise_reconstruction_loss(r_supp, r_query)
+            mse_loss = self._get_pixelwise_reconstruction_loss(r_supp, r_query)
+            self.log('mse_loss', mse_loss, prog_bar=True,)
+            loss += mse_loss
 
         self.manual_backward(loss)
         opt.step()
