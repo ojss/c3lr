@@ -237,7 +237,7 @@ def get_omniglot_transform(img_shape):
                                           transforms.RandomHorizontalFlip(p=0.5),
                                           transforms.RandomVerticalFlip(p=0.5),
                                           transforms.ToTensor(),
-                                          transforms.Lambda(lambda t: F.dropout(t, p=0.3)),
+                                        #   transforms.Lambda(lambda t: F.dropout(t, p=0.3)),
                                           transforms.RandomErasing()
                                           ])
     return data_transforms

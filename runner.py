@@ -1,20 +1,23 @@
-import os
 import argparse
+import os
 import warnings
+from pathlib import Path
 
 import fire
-from pytorch_lightning import callbacks
-import wandb
 import pytorch_lightning as pl
-
-from pathlib import Path
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning import callbacks
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+
+import wandb
 from unsupervised_meta_learning.cactus import *
-from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataset, UnlabelledDataModule
+from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
+                                                       UnlabelledDataset)
 from unsupervised_meta_learning.proto_utils import CAE, CAE4L
-from unsupervised_meta_learning.protonets import ProtoModule, PrototypicalNetwork, CactusPrototypicalModel
 from unsupervised_meta_learning.protoclr import ProtoCLR
+from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
+                                                  ProtoModule,
+                                                  PrototypicalNetwork)
 
 
 def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1, epochs=300, use_precomputed_partitions=False, final_chkpt_name='final.chkpt', final_chkpt_loc=os.getcwd()):
@@ -65,25 +68,34 @@ def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1,
     return 0
 
 
-def protoclr_ae(dataset, datapath, eval_ways=5, eval_support_shots=1, eval_query_shots=15):
+def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb'):
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                  seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_support_shots, 
                  eval_query_shots=eval_query_shots)
 
-    model = ProtoCLR(model=CAE4L(in_channels=1, out_channels=64, hidden_size=64), n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
+    model = ProtoCLR(
+        model=CAE4L(in_channels=1, out_channels=64, hidden_size=64),
+        n_support=1, n_query=3, batch_size=50,
+        gamma=5.0, lr_decay_step=25000, lr_decay_rate=.5,
+        ae=True
+        )
 
-    logger = WandbLogger(
-        project='ProtoCLR+AE',
-        config={
-            'batch_size': 50,
-            'steps': 100,
-            'dataset': dataset,
-            'eval_ways': eval_ways,
-            'eval_support_shots': eval_support_shots,
-            'eval_query_shots': eval_query_shots
-        }
-    )
+    if logging == 'wandb':
+        logger = WandbLogger(
+            project='ProtoCLR+AE',
+            config={
+                'batch_size': 50,
+                'steps': 100,
+                'dataset': dataset,
+                'eval_ways': eval_ways,
+                'eval_support_shots': eval_support_shots,
+                'eval_query_shots': eval_query_shots
+            }
+        )
+    elif logging == 'tb':
+        logger = TensorBoardLogger(save_dir='tb_logs')
+
     trainer = pl.Trainer(
             profiler='simple',
             max_epochs=10000,

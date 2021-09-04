@@ -3,6 +3,7 @@ data/untarred/*
 .ipynb_checkpoints/
 .vscode/
 lightning_logs/
+tb_logs/
 umtra/
 cactus-protonets/
 __pycache__/

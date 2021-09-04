@@ -42,7 +42,7 @@ class Classifier(nn.Module):
 # Cell
 class ProtoCLR(pl.LightningModule):
     def __init__(self, model, n_support, n_query, batch_size,
-    lr_decay_step, lr_decay_rate, classifier=None, lr=1e-3, inner_lr=1e-3,
+    lr_decay_step, lr_decay_rate, classifier=None, gamma=5.0, lr=1e-3, inner_lr=1e-3,
     ae=False, distance='euclidean', mode='trainval', eval_ways=5,
     sup_finetune=True, sup_finetune_lr=1e-3, sup_finetune_epochs=15,
     ft_freeze_backbone=True, finetune_batch_norm=False):
@@ -55,6 +55,9 @@ class ProtoCLR(pl.LightningModule):
 
         self.distance = distance
 
+        # gamma will be used to weight the values of the MSE loss to potentially bring it up to par
+        # gamma can also be adaptive in the future
+        self.gamma = gamma
         self.lr = lr
         self.lr_decay_rate = lr_decay_rate
         self.lr_decay_step = lr_decay_step
@@ -139,7 +142,7 @@ class ProtoCLR(pl.LightningModule):
         # it has been broadcasted such that each support source image is broadcasted thrice over the three
         # query set images - which are the augmentations of the support image
         if self.ae:
-            mse_loss = self._get_pixelwise_reconstruction_loss(r_supp, r_query)
+            mse_loss = self._get_pixelwise_reconstruction_loss(r_supp, r_query) * self.gamma
             self.log('mse_loss', mse_loss, prog_bar=True,)
             loss += mse_loss
 
