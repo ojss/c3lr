@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import os
 import warnings
 from pathlib import Path
@@ -87,10 +88,12 @@ def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1,
             config={
                 'batch_size': 50,
                 'steps': 100,
+		'gamma': gamma,
                 'dataset': dataset,
                 'eval_ways': eval_ways,
                 'eval_support_shots': eval_support_shots,
-                'eval_query_shots': eval_query_shots
+                'eval_query_shots': eval_query_shots,
+		'timestamp': str(datetime.now())
             }
         )
     elif logging == 'tb':
