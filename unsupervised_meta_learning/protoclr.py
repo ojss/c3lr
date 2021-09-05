@@ -87,9 +87,12 @@ class ProtoCLR(pl.LightningModule):
         return {'optimizer': opt, 'lr_scheduler': sch}
 
     def _get_pixelwise_reconstruction_loss(self, supp, query):
-        return F.mse_loss(supp.view(1, supp.shape[1], self.n_support, 1, 28, 28),
-                          query.view(1, supp.shape[1], self.n_query, 1, 28, 28),
-                          reduction='none').sum(dim=[1, 2, 3, 4, 5]).mean(dim=[0])
+        # return F.mse_loss(supp.view(1, supp.shape[1], self.n_support, 1, 28, 28),
+        #                   query.view(1, supp.shape[1], self.n_query, 1, 28, 28),
+        #                   reduction='none').sum(dim=[1, 2, 3, 4, 5]).mean(dim=[0])
+        return F.binary_cross_entropy(query.view(1, supp.shape[1], self.n_query, 1, 28, 28),
+        torch.broadcast_to(supp.view(1, supp.shape[1], self.n_support, 1, 28, 28), (1, supp.shape[1], self.n_query, 1, 28, 28)).detach())
+                          #reduction='none').sum(dim=[1, 2, 3, 4, 5]).mean(dim=[0])
 
     def calculate_protoclr_loss(self, batch, ae=True):
         wandblogger = self.logger.experiment

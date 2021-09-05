@@ -18,7 +18,7 @@ dm = UnlabelledDataModule('omniglot', './data/untarred/', split='train', transfo
 
 net = CAE4L(in_channels=1, out_channels=64, hidden_size=64)
 model = ProtoCLR(model=net,
- n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True, gamma=50.0)
+ n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True, gamma=50.0, log_images=True)
 
 logger = WandbLogger(
     project='ProtoCLR+AE',
