@@ -69,17 +69,19 @@ def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1,
     return 0
 
 
-def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb'):
+def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
+    
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                  seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_support_shots, 
                  eval_query_shots=eval_query_shots)
-
+    net = CAE4L(in_channels=1, out_channels=64, hidden_size=64)
     model = ProtoCLR(
-        model=CAE4L(in_channels=1, out_channels=64, hidden_size=64),
-        n_support=1, n_query=3, batch_size=50,
-        gamma=5.0, lr_decay_step=25000, lr_decay_rate=.5,
-        ae=True
+            model=net,
+            n_support=1, n_query=3, batch_size=50,
+            gamma=5.0, lr_decay_step=25000, lr_decay_rate=.5,
+            ae=True,
+            log_images=log_images
         )
 
     if logging == 'wandb':
@@ -110,6 +112,9 @@ def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1,
             num_sanity_val_steps=2, gpus=1,
             logger=logger
         )
+
+    logger.watch(net)
+
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

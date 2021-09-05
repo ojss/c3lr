@@ -6,17 +6,24 @@ __all__ = ['Classifier', 'ProtoCLR']
 #export
 import copy
 import warnings
-import torch
+
 import numpy as np
+import pytorch_lightning as pl
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pytorch_lightning as pl
-
-from tqdm.auto import tqdm
-from torch.autograd import Variable
 from pytorch_lightning.loggers import WandbLogger
-from .proto_utils import prototypical_loss, get_prototypes, CAE
-from .pl_dataloaders import UnlabelledDataModule, UnlabelledDataset, get_episode_loader
+from torch.autograd import Variable
+from torchvision.utils import make_grid
+from tqdm.auto import tqdm
+
+import wandb
+from .pl_dataloaders import (UnlabelledDataModule,
+                                                       UnlabelledDataset,
+                                                       get_episode_loader)
+from .proto_utils import (CAE, get_prototypes,
+                                                    prototypical_loss)
+
 
 # Cell
 class Classifier(nn.Module):
@@ -45,7 +52,7 @@ class ProtoCLR(pl.LightningModule):
     lr_decay_step, lr_decay_rate, classifier=None, gamma=5.0, lr=1e-3, inner_lr=1e-3,
     ae=False, distance='euclidean', mode='trainval', eval_ways=5,
     sup_finetune=True, sup_finetune_lr=1e-3, sup_finetune_epochs=15,
-    ft_freeze_backbone=True, finetune_batch_norm=False):
+    ft_freeze_backbone=True, finetune_batch_norm=False, log_images=True):
         super().__init__()
         self.model = model
         self.ae = ae
@@ -71,10 +78,11 @@ class ProtoCLR(pl.LightningModule):
         self.ft_freeze_backbone = ft_freeze_backbone
         self.finetune_batch_norm = finetune_batch_norm
 
+        self.log_images = log_images
         self.automatic_optimization = False
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=.01)
         sch = torch.optim.lr_scheduler.StepLR(opt, step_size=self.lr_decay_step, gamma=self.lr_decay_rate)
         return {'optimizer': opt, 'lr_scheduler': sch}
 
@@ -84,6 +92,7 @@ class ProtoCLR(pl.LightningModule):
                           reduction='none').sum(dim=[1, 2, 3, 4, 5]).mean(dim=[0])
 
     def calculate_protoclr_loss(self, batch, ae=True):
+        wandblogger = self.logger.experiment
         r_supp, r_query = None, None
 
         # Treat the first dim as way, the second as shots
@@ -116,6 +125,17 @@ class ProtoCLR(pl.LightningModule):
             z, r = self.model.forward(x)
             r_supp = r[:,:ways * self.n_support]
             r_query = r[:,ways * self.n_support:]
+            if self.log_images and self.global_step % 100 == 0:
+                arr = torch.vstack([
+                            x_support[0][0].unsqueeze(0),
+                            x_query.reshape(1, x_support.shape[1], 3, 1, 28, 28)[0][0],
+                            r_supp[0][0].unsqueeze(0),
+                            r_query.reshape(1, x_support.shape[1], 3, 1, 28, 28)[0][0],
+                        ]
+                    )
+                image_array = make_grid(arr)
+                imgs = wandb.Image(image_array, caption='Top: original images, bottom: reconstructions')
+                wandb.log({'reoncstructions': imgs})
         else:
             z = self.model.forward(x)
         z_support = z[:,:ways * self.n_support] # e.g. [1,50*n_support,*(3,84,84)]
@@ -131,12 +151,14 @@ class ProtoCLR(pl.LightningModule):
         return loss, accuracy, r_supp, r_query
 
     def training_step(self, batch, batch_idx):
+
         opt = self.optimizers()
         sch = self.lr_schedulers()
 
         opt.zero_grad()
 
         loss, accuracy, r_supp, r_query = self.calculate_protoclr_loss(batch, ae=self.ae)
+
         self.log('clr_loss', loss, prog_bar=True)
         # adding the pixelwise reconstruction loss at the end
         # it has been broadcasted such that each support source image is broadcasted thrice over the three

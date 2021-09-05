@@ -16,15 +16,17 @@ dm = UnlabelledDataModule('omniglot', './data/untarred/', split='train', transfo
                  seed=10, mode='trainval', eval_ways=5, eval_support_shots=1, 
                  eval_query_shots=15)
 
-model = ProtoCLR(model=CAE4L(in_channels=1, out_channels=64, hidden_size=64),
- n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True)
+net = CAE4L(in_channels=1, out_channels=64, hidden_size=64)
+model = ProtoCLR(model=net,
+ n_support=1, n_query=3, batch_size=50, lr_decay_step=25000, lr_decay_rate=.5, ae=True, gamma=50.0)
 
 logger = WandbLogger(
     project='ProtoCLR+AE',
     config={
         'batch_size': 50,
         'steps': 100,
-        'dataset': "omniglot"
+        'dataset': "omniglot",
+        'testing': True
     }
 )
 trainer = pl.Trainer(
@@ -35,8 +37,10 @@ trainer = pl.Trainer(
         limit_val_batches=15,
         limit_test_batches=600,
         callbacks=[EarlyStopping(monitor="val_loss", patience=200, min_delta=.02)],
-        num_sanity_val_steps=2, gpus=1, #logger=logger
+        num_sanity_val_steps=2, gpus=1, logger=logger
     )
+
+logger.watch(net)
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
