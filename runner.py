@@ -1,24 +1,19 @@
-import argparse
-from datetime import datetime
 import os
 import warnings
+from datetime import datetime
 from pathlib import Path
 
 import fire
 import pytorch_lightning as pl
-from pytorch_lightning import callbacks
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 import wandb
 from unsupervised_meta_learning.cactus import *
-from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
-                                                       UnlabelledDataset)
-from unsupervised_meta_learning.proto_utils import CAE, CAE4L
-from unsupervised_meta_learning.protoclr import ProtoCLR
+from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataModule, UnlabelledDataset
+from unsupervised_meta_learning.protoclr import ProtoCLR, WandbImageCallback, get_train_images
 from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
-                                                  ProtoModule,
-                                                  PrototypicalNetwork)
+                                                  ProtoModule)
 
 
 def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1, epochs=300, use_precomputed_partitions=False, final_chkpt_name='final.chkpt', final_chkpt_loc=os.getcwd()):
@@ -69,17 +64,15 @@ def cactus(emb_data_dir:Path=None, n_ways=20, n_shots=1, query=15, batch_size=1,
     return 0
 
 
-def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
+def protoclr_ae(dataset, datapath, gamma=1.0, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
     
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                  n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                  seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_support_shots, 
                  eval_query_shots=eval_query_shots)
-    net = CAE4L(in_channels=1, out_channels=64, hidden_size=64)
     model = ProtoCLR(
-            model=net,
             n_support=1, n_query=3, batch_size=50,
-            gamma=5.0, lr_decay_step=25000, lr_decay_rate=.5,
+            gamma=gamma, lr_decay_step=25000, lr_decay_rate=.5,
             ae=True,
             log_images=log_images
         )
@@ -90,17 +83,24 @@ def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1,
             config={
                 'batch_size': 50,
                 'steps': 100,
-		'gamma': gamma,
+		        'gamma': gamma,
                 'dataset': dataset,
                 'eval_ways': eval_ways,
                 'eval_support_shots': eval_support_shots,
                 'eval_query_shots': eval_query_shots,
-		'timestamp': str(datetime.now())
+		        'timestamp': str(datetime.now())
             }
         )
     elif logging == 'tb':
         logger = TensorBoardLogger(save_dir='tb_logs')
-
+    
+    dataset_train = UnlabelledDataset(
+        dataset='omniglot',
+        datapath='./data/untarred/',
+        split='train',
+        n_support=1,
+        n_query=3
+    )
     trainer = pl.Trainer(
             profiler='simple',
             max_epochs=10000,
@@ -108,12 +108,14 @@ def protoclr_ae(dataset, datapath, gamma=5.0, eval_ways=5, eval_support_shots=1,
             fast_dev_run=False,
             limit_val_batches=15,
             limit_test_batches=600,
-            callbacks=[EarlyStopping(monitor="val_loss", patience=300, min_delta=.02)],
+            callbacks=[
+                WandbImageCallback(get_train_images(dataset_train, 8)),
+                EarlyStopping(monitor="val_loss", patience=300, min_delta=.02)],
             num_sanity_val_steps=2, gpus=1,
             logger=logger
         )
 
-    logger.watch(net)
+    logger.watch(model)
 
 
     with warnings.catch_warnings():
