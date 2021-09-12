@@ -113,7 +113,7 @@ def prototypical_loss(prototypes, embeddings, targets,
         Mean accuracy on the query points.
     """
     if distance == 'euclidean':
-        squared_distances = euclidean_distance(prototypes, embeddings)
+        squared_distances = euclidean_distance(prototypes, embeddings) / τ
         loss = F.cross_entropy(-squared_distances, targets, **kwargs)
         _, predictions = torch.min(squared_distances, dim=1)
         accuracy = torch.mean(predictions.eq(targets).float())
