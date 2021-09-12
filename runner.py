@@ -106,8 +106,8 @@ def protoclr_ae(dataset, datapath, gamma=1.0, distance='euclidean', tau=.5, eval
         logger = TensorBoardLogger(save_dir='tb_logs')
     
     dataset_train = UnlabelledDataset(
-        dataset='omniglot',
-        datapath='./data/untarred/',
+        dataset=dataset,
+        datapath=datapath,
         split='train',
         n_support=1,
         n_query=3
