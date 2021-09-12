@@ -84,7 +84,7 @@ def get_prototypes(self, emb, targets, num_classes):
 
 # Cell
 def prototypical_loss(prototypes, embeddings, targets,
-                      distance='euclidean', **kwargs):
+                      distance='euclidean', τ=.5, **kwargs):
     """Compute the loss (i.e. negative log-likelihood) for the prototypical
     network, on the test/query points.
 
@@ -118,7 +118,7 @@ def prototypical_loss(prototypes, embeddings, targets,
         _, predictions = torch.min(squared_distances, dim=1)
         accuracy = torch.mean(predictions.eq(targets).float())
     elif distance == 'cosine':
-        cosine_similarities = cosine_similarity(prototypes, embeddings)
+        cosine_similarities = cosine_similarity(prototypes, embeddings) / τ
         loss = F.cross_entropy(cosine_similarities, targets, **kwargs)
         _, predictions = torch.max(cosine_similarities, dim=1)
         accuracy = torch.mean(predictions.eq(targets).float())
