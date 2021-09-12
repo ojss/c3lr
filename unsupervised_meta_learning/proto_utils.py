@@ -32,7 +32,7 @@ def cosine_similarity(x, y):
     x_norm = x.norm(p=2, dim=-1, keepdim=True)
     y_norm = y.norm(p=2, dim=-1, keepdim=True)
 
-    norms = torch.bmm(x, y.permute(0, 2, 1)) + 1e-8
+    norms = torch.bmm(x_norm, y_norm.permute(0, 2, 1)) + 1e-8
 
     return dot_similarity / norms
 
