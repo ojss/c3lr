@@ -14,7 +14,8 @@ from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
                                                        UnlabelledDataset)
 from unsupervised_meta_learning.protoclr import (ProtoCLR,
                                                  TensorBoardImageCallback,
-                                                 WandbImageCallback,
+                                                 WandbImageCallback, 
+                                                 ConfidenceIntervalCallback,
                                                  get_train_images)
 from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
                                                   ProtoModule)
@@ -123,7 +124,8 @@ def protoclr_ae(dataset, datapath, gamma=1.0, distance='euclidean', tau=.5, eval
                 WandbImageCallback(get_train_images(dataset_train, 8)) if logging == 'wandb' \
                     else \
                     TensorBoardImageCallback(get_train_images(dataset_train, 8)),
-                EarlyStopping(monitor="val_loss", patience=300, min_delta=.02)],
+                EarlyStopping(monitor="val_loss", patience=300, min_delta=.02), 
+                ConfidenceIntervalCallback()],
             num_sanity_val_steps=2, gpus=1,
             logger=logger
         )
