@@ -73,12 +73,15 @@ def cactus(
     return 0
 
 
-def protoclr_ae(dataset, datapath, gamma=1.0, distance='euclidean', tau=.5, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
+def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='euclidean', tau=.5, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
 
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                               n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                               seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_support_shots,
                               eval_query_shots=eval_query_shots)
+
+    print(f"lr: {lr} and inner_lr: {inner_lr}")
+    print(type(lr), type(inner_lr))
 
     if dataset == 'omniglot':
         decoder_class = Decoder4L
@@ -88,7 +91,7 @@ def protoclr_ae(dataset, datapath, gamma=1.0, distance='euclidean', tau=.5, eval
         num_input_channels = 3
     model = ProtoCLR(
         n_support=1, n_query=3, batch_size=50,
-        gamma=gamma, lr_decay_step=25000, lr_decay_rate=.5,
+        gamma=gamma, lr=lr, inner_lr=inner_lr, lr_decay_step=25000, lr_decay_rate=.5,
         decoder_class=decoder_class, num_input_channels=num_input_channels,
         distance=distance, τ=tau,  # keeping it at .5 based on SimCLR
         ae=True,
@@ -101,6 +104,8 @@ def protoclr_ae(dataset, datapath, gamma=1.0, distance='euclidean', tau=.5, eval
             config={
                 'batch_size': 50,
                 'steps': 100,
+                'lr': lr,
+                'inner_lr': inner_lr,
                 'gamma': gamma,
                 'τ': tau,
                 'distance': distance,
