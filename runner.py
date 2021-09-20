@@ -80,9 +80,6 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
                               seed=10, mode='trainval', eval_ways=eval_ways, eval_support_shots=eval_support_shots,
                               eval_query_shots=eval_query_shots)
 
-    print(f"lr: {lr} and inner_lr: {inner_lr}")
-    print(type(lr), type(inner_lr))
-
     if dataset == 'omniglot':
         decoder_class = Decoder4L
         num_input_channels = 1
