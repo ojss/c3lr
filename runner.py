@@ -2,6 +2,7 @@ import os
 import warnings
 from datetime import datetime
 from pathlib import Path
+from functools import partial
 
 import fire
 import pytorch_lightning as pl
@@ -11,11 +12,13 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 import wandb
 from unsupervised_meta_learning.cactus import *
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
-                                                       UnlabelledDataset)
-from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini
+                                                       UnlabelledDataset, get_episode_loader)
+from unsupervised_meta_learning.proto_utils import (Decoder4L, Decoder4L4Mini,
+                                                    get_images_labels_from_dl)
 from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
                                                  ProtoCLR,
                                                  TensorBoardImageCallback,
+                                                 UMAPCallback,
                                                  WandbImageCallback,
                                                  get_train_images)
 from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
@@ -73,7 +76,8 @@ def cactus(
     return 0
 
 
-def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='euclidean', tau=.5, eval_ways=5, eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
+def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='euclidean', tau=.5, eval_ways=5,
+                eval_support_shots=1, eval_query_shots=15, logging='wandb', log_images=False):
 
     dm = UnlabelledDataModule(dataset, datapath, split='train', transform=None,
                               n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
@@ -125,6 +129,14 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
         n_support=1,
         n_query=3
     )
+    dl = get_episode_loader(dataset, datapath,
+                            ways=5,
+                            shots=5,
+                            test_shots=15,
+                            batch_size=1,
+                            split='val',
+                            )
+    image_f = partial(get_images_labels_from_dl, dl)
     trainer = pl.Trainer(
         profiler='simple',
         max_epochs=10000,
@@ -137,6 +149,7 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
             else
             TensorBoardImageCallback(get_train_images(dataset_train, 8)),
             EarlyStopping(monitor="val_loss", patience=300, min_delta=.02),
+            UMAPCallback(image_f),
             ConfidenceIntervalCallback()],
         num_sanity_val_steps=2, gpus=1,
         logger=logger
