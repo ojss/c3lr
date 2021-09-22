@@ -144,14 +144,14 @@ class UMAPCallback(pl.Callback):
                 pl_module.train()
             z = z.detach().cpu().tolist()
             xs = umap.UMAP(random_state=42).fit_transform(z)
-            plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap='Spectral')
+            plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap='turbo')
             if self.logging_tech == 'wandb':
                 wandb.log({
                     'UMAP clustering of embeddings': wandb.Image(plt),
                 }, step=trainer.global_step)
             elif self.logging_tech == 'tb':
                 pass
-
+        plt.clf()
         # return super().on_validation_end(trainer, pl_module)
 
 # Cell
