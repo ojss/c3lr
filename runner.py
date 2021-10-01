@@ -151,7 +151,7 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
             EarlyStopping(monitor="val_loss", patience=300, min_delta=.02),
             UMAPCallback(image_f),
             ConfidenceIntervalCallback()],
-        num_sanity_val_steps=2, gpus=1,
+        num_sanity_val_steps=2, gpus=-1,
         logger=logger
     )
 

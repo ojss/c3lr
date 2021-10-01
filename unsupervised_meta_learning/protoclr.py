@@ -117,14 +117,14 @@ class ConfidenceIntervalCallback(pl.Callback):
         conf_interval = stats.t.interval(0.95, len(self.accuracies)-1, loc=np.mean(self.accuracies),
                                       scale=stats.sem(self.accuracies))
 
-        wandb.log({'Confidence Interval': conf_interval}, step=trainer.global_step)
+        wandb.log({'Confidence Interval': conf_interval}, commit=False)
 
         plt.ylabel("Average Test Accuracy")
         plt.errorbar([1], np.mean(self.accuracies), yerr=np.std(self.accuracies), fmt='o', color='black',
              ecolor='lightgray', elinewidth=3, capsize=0)
         wandb.log({
             'Average Test Accuracy with std dev': wandb.Image(plt)
-        }, step=trainer.global_step)
+        }, commit=False)
 
 # Cell
 class UMAPCallback(pl.Callback):
