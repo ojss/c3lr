@@ -140,6 +140,7 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
     trainer = pl.Trainer(
         profiler='simple',
         max_epochs=10000,
+        min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,
         limit_val_batches=15,
