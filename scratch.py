@@ -7,20 +7,19 @@ from pytorch_lightning.loggers import WandbLogger
 
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule, get_episode_loader,
                                                        UnlabelledDataset)
-from unsupervised_meta_learning.proto_utils import CAE, CAE4L, Decoder4L, Encoder, Encoder4L, Decoder4L4Mini, get_images_labels_from_dl
+from unsupervised_meta_learning.proto_utils import CAE, CAE4L, Decoder4L, Encoder, Decoder, Encoder4L, Decoder4L4Mini, get_images_labels_from_dl
 from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
-                                                 ProtoCLR, WandbImageCallback, UMAPCallback,
+                                                 ProtoCLR, WandbImageCallback, UMAPCallback, UMAPClusteringCallback,
                                                  get_train_images)
 
-dm = UnlabelledDataModule('omniglot', './data/', split='train', transform=None,
+dm = UnlabelledDataModule('omniglot', './data/untarred', split='train', transform=None,
                           n_support=1, n_query=3, n_images=None, n_classes=None, batch_size=50,
                           seed=10, mode='trainval', eval_ways=5, eval_support_shots=1,
                           eval_query_shots=15)
 
-# net = CAE4L(in_channels=1, out_channels=64, hidden_size=64)
 model = ProtoCLR(
     n_support=1, n_query=3, batch_size=50, distance='cosine', τ=.5,
-    num_input_channels=1, decoder_class=Decoder4L,
+    num_input_channels=1, decoder_class=Decoder, encoder_class=Encoder,
     lr_decay_step=25000, lr_decay_rate=.5, ae=True, gamma=1., log_images=True)
 
 logger = WandbLogger(
@@ -28,19 +27,19 @@ logger = WandbLogger(
     config={
         'batch_size': 50,
         'steps': 100,
-        'dataset': "miniimagenet",
+        'dataset': "omniglot",
         'testing': True
     }
 )
 dataset_train = UnlabelledDataset(
     dataset='omniglot',
-    datapath='./data/',
+    datapath='./data/untarred',
     split='train',
     n_support=1,
     n_query=3
 )
 
-dl = get_episode_loader('omniglot', './data/',
+dl = get_episode_loader('omniglot', './data/untarred',
                         ways=5,
                         shots=5,
                         test_shots=15,
@@ -58,7 +57,9 @@ trainer = pl.Trainer(
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[EarlyStopping(
-        monitor="val_loss", patience=200, min_delta=.02), UMAPCallback(f, every_n_epochs=1)],
+        monitor="val_loss", patience=200, min_delta=.02), 
+        UMAPClusteringCallback(f, every_n_epochs=1)
+        ],
     num_sanity_val_steps=2, gpus=1,  logger=logger
 )
 
