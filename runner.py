@@ -18,7 +18,7 @@ from unsupervised_meta_learning.proto_utils import (Decoder4L, Decoder4L4Mini,
 from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
                                                  ProtoCLR,
                                                  TensorBoardImageCallback,
-                                                 UMAPCallback,
+                                                 UMAPCallback, UMAPClusteringCallback,
                                                  WandbImageCallback,
                                                  get_train_images)
 from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
@@ -150,7 +150,7 @@ def protoclr_ae(dataset, datapath, lr=1e-3, inner_lr=1e-3, gamma=1.0, distance='
             else
             TensorBoardImageCallback(get_train_images(dataset_train, 8)),
             EarlyStopping(monitor="val_loss", patience=300, min_delta=.02),
-            UMAPCallback(image_f),
+            UMAPClusteringCallback(image_f, every_n_epochs=1),
             ConfidenceIntervalCallback()],
         num_sanity_val_steps=2, gpus=-1,
         logger=logger
