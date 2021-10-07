@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express as px
 import pytorch_lightning as pl
-import sklearn.cluster as cluster
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -147,7 +146,6 @@ class UMAPCallback(pl.Callback):
                 pl_module.train()
             z = z.detach().cpu().tolist()
             xs = umap.UMAP(random_state=42).fit_transform(z)
-            predicted_labels = cluster.KMeans(n_clusters=5, )
             plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap='turbo')
             if self.logging_tech == 'wandb':
                 wandb.log({
@@ -176,14 +174,8 @@ class UMAPClusteringCallback(pl.Callback):
                 pl_module.train()
             z = z.detach().cpu().tolist()
             xs = umap.UMAP(random_state=42).fit_transform(z)
-            predicted_labels = cluster.SpectralClustering(n_clusters=8, affinity='nearest_neighbors').fit_predict(xs)
-            # fig, (ax0, ax1) = plt.subplots(2)
+            predicted_labels = cluster.KMeans(n_clusters=5).fit_predict(xs)
 
-            # fig.suptitle("UMAP reduction")
-            # ax0.set_title("Before KMeans")
-            # ax0.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap='turbo')
-            # ax1.set_title("After KMeans")
-            # plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=predicted_labels, cmap='turbo')
             fig0 = px.scatter(x=xs[:, 0], y=xs[:, 1], color=labels, template='seaborn')
             fig1 = px.scatter(x=xs[:, 0], y=xs[:, 1], color=predicted_labels, template='seaborn')
             if self.logging_tech == 'wandb':

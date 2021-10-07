@@ -13,7 +13,7 @@ import wandb
 from unsupervised_meta_learning.cactus import *
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
                                                        UnlabelledDataset, get_episode_loader)
-from unsupervised_meta_learning.proto_utils import (Decoder4L, Decoder4L4Mini,
+from unsupervised_meta_learning.proto_utils import (Decoder4L, Decoder4L4Mini, Encoder, Decoder,
                                                     get_images_labels_from_dl)
 from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
                                                  ProtoCLR,
