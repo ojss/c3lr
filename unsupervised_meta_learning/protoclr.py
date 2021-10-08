@@ -131,12 +131,15 @@ class ConfidenceIntervalCallback(pl.Callback):
 # Cell
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
-    def __init__(self, image_f, every_n_epochs=10, logger='wandb') -> None:
+    def __init__(self, image_f, every_n_epochs=10, logger="wandb") -> None:
         super().__init__()
         self.image_f = image_f
         self.every_n_epochs = every_n_epochs
         self.logging_tech = logger
-    def on_validation_end(self, trainer: 'pl.Trainer', pl_module: 'pl.LightningModule') -> None:
+
+    def on_validation_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
         if trainer.current_epoch % self.every_n_epochs == 0:
             imgs, labels = self.image_f()
             imgs, labels = imgs.to(pl_module.device), labels.to(labels.device)
@@ -146,25 +149,48 @@ class UMAPCallback(pl.Callback):
                 pl_module.train()
             z = z.detach().cpu().tolist()
             xs = umap.UMAP(random_state=42).fit_transform(z)
-            plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap='turbo')
-            if self.logging_tech == 'wandb':
-                wandb.log({
-                    'UMAP clustering of embeddings': wandb.Image(plt),
-                }, step=trainer.global_step)
-            elif self.logging_tech == 'tb':
+            plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap="turbo")
+            if self.logging_tech == "wandb":
+                wandb.log(
+                    {
+                        "UMAP clustering of embeddings": wandb.Image(plt),
+                    },
+                    step=trainer.global_step,
+                )
+            elif self.logging_tech == "tb":
                 pass
         plt.clf()
         # return super().on_validation_end(trainer, pl_module)
 
+
 # Cell
 class UMAPClusteringCallback(pl.Callback):
-    def __init__(self, image_f, every_n_epochs=1, cluster_alg='kmeans', kernel='rbf', logger='wandb') -> None:
+    def __init__(
+        self,
+        image_f,
+        cluster_on_latent=True,
+        every_n_epochs=1,
+        n_clusters=5,
+        cluster_alg="kmeans",
+        kernel="rbf",
+        logger="wandb",
+    ) -> None:
         super().__init__()
         self.image_f = image_f
         self.every_n_epochs = every_n_epochs
         self.logging_tech = logger
+        self.cluster_alg = cluster_alg
+        self.n_clusters = n_clusters
+        self.cluster_on_latent = cluster_on_latent
 
-    def on_validation_batch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
+    def on_validation_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
         if trainer.current_epoch % self.every_n_epochs == 0:
             imgs, labels = self.image_f()
             imgs, labels = imgs.to(pl_module.device), labels.to(labels.device)
@@ -174,37 +200,79 @@ class UMAPClusteringCallback(pl.Callback):
                 pl_module.train()
             z = z.detach().cpu().tolist()
             xs = umap.UMAP(random_state=42).fit_transform(z)
-            predicted_labels = cluster.KMeans(n_clusters=5).fit_predict(xs)
+            data = z if self.cluster_on_latent == True else xs
 
-            fig0 = px.scatter(x=xs[:, 0], y=xs[:, 1], color=labels, template='seaborn')
-            fig1 = px.scatter(x=xs[:, 0], y=xs[:, 1], color=predicted_labels, template='seaborn')
-            if self.logging_tech == 'wandb':
-                wandb.log({
-                    'UMAP clustering of embeddings': fig0,
-                }, step=trainer.global_step)
-                wandb.log({
-                    'KMeans results': fig1
-                }, step=trainer.global_step)
-            elif self.logging_tech == 'tb':
+            if self.cluster_alg == "kmeans":
+                predicted_labels = cluster.KMeans(n_clusters=5).fit_predict(data)
+            elif self.cluster_alg == "spectral":
+                predicted_labels = cluster.SpectralClustering(n_clusters=5).fit_predict(
+                    data
+                )
+
+            fig0 = px.scatter(
+                x=xs[:, 0],
+                y=xs[:, 1],
+                color=labels,
+                template="seaborn",
+                color_discrete_sequence=px.colors.qualitative.Prism,
+                color_continuous_scale=px.colors.diverging.Portland,
+            )
+            fig1 = px.scatter(
+                x=xs[:, 0],
+                y=xs[:, 1],
+                color=predicted_labels,
+                template="seaborn",
+                color_discrete_sequence=px.colors.qualitative.Prism,
+                color_continuous_scale=px.colors.diverging.Portland,
+            )
+            if self.logging_tech == "wandb":
+                wandb.log(
+                    {
+                        "UMAP clustering of embeddings": fig0,
+                    },
+                    step=trainer.global_step,
+                )
+                wandb.log({"KMeans results": fig1}, step=trainer.global_step)
+            elif self.logging_tech == "tb":
                 pass
         plt.clf()
 
+
 # Cell
 class ProtoCLR(pl.LightningModule):
-    def __init__(self, n_support, n_query, batch_size,
-                 lr_decay_step, lr_decay_rate, dataset='omniglot',
-                 num_input_channels=1, base_channel_size=64, latent_dim=64,
-                 encoder_class=Encoder4L, decoder_class=Decoder4L,
-                 classifier=None, gamma=5.0, lr=1e-3, inner_lr=1e-3,
-                 ae=False, distance='euclidean', τ=.5, mode='trainval', eval_ways=5,
-                 sup_finetune=True, sup_finetune_lr=1e-3, sup_finetune_epochs=15,
-                 ft_freeze_backbone=True, finetune_batch_norm=False, log_images=True):
+    def __init__(
+        self,
+        n_support,
+        n_query,
+        batch_size,
+        lr_decay_step,
+        lr_decay_rate,
+        dataset="omniglot",
+        num_input_channels=1,
+        base_channel_size=64,
+        latent_dim=64,
+        encoder_class=Encoder4L,
+        decoder_class=Decoder4L,
+        classifier=None,
+        gamma=5.0,
+        lr=1e-3,
+        inner_lr=1e-3,
+        ae=False,
+        distance="euclidean",
+        τ=0.5,
+        mode="trainval",
+        eval_ways=5,
+        sup_finetune=True,
+        sup_finetune_lr=1e-3,
+        sup_finetune_epochs=15,
+        ft_freeze_backbone=True,
+        finetune_batch_norm=False,
+        log_images=True,
+    ):
         super().__init__()
 
-        self.encoder = encoder_class(
-            num_input_channels, base_channel_size, latent_dim)
-        self.decoder = decoder_class(
-            num_input_channels, base_channel_size, latent_dim)
+        self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim)
+        self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim)
 
         # self.model = model
         self.ae = ae
@@ -239,10 +307,11 @@ class ProtoCLR(pl.LightningModule):
         self.automatic_optimization = False
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=.01)
+        opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.01)
         sch = torch.optim.lr_scheduler.StepLR(
-            opt, step_size=self.lr_decay_step, gamma=self.lr_decay_rate)
-        return {'optimizer': opt, 'lr_scheduler': sch}
+            opt, step_size=self.lr_decay_step, gamma=self.lr_decay_rate
+        )
+        return {"optimizer": opt, "lr_scheduler": sch}
 
     def forward(self, x):
         z = self.encoder(x.view(-1, *x.shape[-3:]))
@@ -250,27 +319,36 @@ class ProtoCLR(pl.LightningModule):
         recons = self.decoder(z)
         return embeddings.view(*x.shape[:-3], -1), recons.view(*x.shape)
 
-
     def _get_pixelwise_reconstruction_loss(self, x, x_hat, ways):
-        mse_loss = F.mse_loss(x.squeeze(0), x_hat.squeeze(
-            0), reduction='none').sum(dim=[1, 2, 3, ]).mean(dim=[0])
+        mse_loss = (
+            F.mse_loss(x.squeeze(0), x_hat.squeeze(0), reduction="none")
+            .sum(
+                dim=[
+                    1,
+                    2,
+                    3,
+                ]
+            )
+            .mean(dim=[0])
+        )
         return mse_loss
 
     def calculate_protoclr_loss(self, z, y_support, y_query, ways):
 
         #
         # e.g. [1,50*n_support,*(3,84,84)]
-        z_support = z[:, :ways * self.n_support]
+        z_support = z[:, : ways * self.n_support]
         # e.g. [1,50*n_query,*(3,84,84)]
-        z_query = z[:, ways * self.n_support:]
+        z_query = z[:, ways * self.n_support :]
         # Get prototypes
         if self.n_support == 1:
             z_proto = z_support  # in 1-shot the prototypes are the support samples
         else:
             z_proto = get_prototypes(z_support, y_support, ways)
 
-        loss, accuracy = prototypical_loss(z_proto, z_query, y_query,
-                                           distance=self.distance, τ=self.τ)
+        loss, accuracy = prototypical_loss(
+            z_proto, z_query, y_query, distance=self.distance, τ=self.τ
+        )
         return loss, accuracy
 
     def training_step(self, batch, batch_idx):
@@ -278,30 +356,30 @@ class ProtoCLR(pl.LightningModule):
         sch = self.lr_schedulers()
 
         # [batch_size x ways x shots x image_dim]
-        data = batch['data'].to(self.device)
+        data = batch["data"].to(self.device)
         data = data.unsqueeze(0)
         # e.g. 50 images, 2 support, 2 query, miniImageNet: torch.Size([1, 50, 4, 3, 84, 84])
         batch_size = data.size(0)
         ways = data.size(1)
 
         # Divide into support and query shots
-        x_support = data[:, :, :self.n_support]
+        x_support = data[:, :, : self.n_support]
         # e.g. [1,50*n_support,*(3,84,84)]
         x_support = x_support.reshape(
-            (batch_size, ways * self.n_support, *x_support.shape[-3:]))
-        x_query = data[:, :, self.n_support:]
+            (batch_size, ways * self.n_support, *x_support.shape[-3:])
+        )
+        x_query = data[:, :, self.n_support :]
         # e.g. [1,50*n_query,*(3,84,84)]
         x_query = x_query.reshape(
-            (batch_size, ways * self.n_query, *x_query.shape[-3:]))
+            (batch_size, ways * self.n_query, *x_query.shape[-3:])
+        )
 
         # Create dummy query labels
-        y_query = torch.arange(ways).unsqueeze(
-            0).unsqueeze(2)  # batch and shot dim
+        y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
         y_query = y_query.repeat(batch_size, 1, self.n_query)
         y_query = y_query.view(batch_size, -1).to(self.device)
 
-        y_support = torch.arange(ways).unsqueeze(
-            0).unsqueeze(2)  # batch and shot dim
+        y_support = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
         y_support = y_support.repeat(batch_size, 1, self.n_support)
         y_support = y_support.view(batch_size, -1).to(self.device)
 
@@ -312,38 +390,48 @@ class ProtoCLR(pl.LightningModule):
 
         opt.zero_grad()
 
-        loss, accuracy = self.calculate_protoclr_loss(
-            z, y_support, y_query, ways)
+        loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
 
-        self.log('clr_loss', loss.item(), prog_bar=True)
+        self.log("clr_loss", loss.item(), prog_bar=True)
         # adding the pixelwise reconstruction loss at the end
         # it has been broadcasted such that each support source image is broadcasted thrice over the three
         # query set images - which are the augmentations of the support image
         if self.ae:
-            mse_loss = self._get_pixelwise_reconstruction_loss(
-                x, x_hat, ways) * self.gamma
-            self.log('mse_loss', mse_loss.item(), prog_bar=True,)
+            mse_loss = (
+                self._get_pixelwise_reconstruction_loss(x, x_hat, ways) * self.gamma
+            )
+            self.log(
+                "mse_loss",
+                mse_loss.item(),
+                prog_bar=True,
+            )
             loss += mse_loss
 
         self.manual_backward(loss)
         opt.step()
         sch.step()
 
-        self.log_dict({
-            'loss': loss.item(),
-            'train_accuracy': accuracy
-        }, prog_bar=True)
+        self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True)
 
         return loss, accuracy
 
     @torch.enable_grad()
-    def supervised_finetuning(self, encoder, episode, device='cpu', proto_init=True,
-                              freeze_backbone=False, finetune_batch_norm=False,
-                              inner_lr=0.001, total_epoch=15, n_way=5):
-        x_support = episode['train'][0][0]  # only take data & only first batch
+    def supervised_finetuning(
+        self,
+        encoder,
+        episode,
+        device="cpu",
+        proto_init=True,
+        freeze_backbone=False,
+        finetune_batch_norm=False,
+        inner_lr=0.001,
+        total_epoch=15,
+        n_way=5,
+    ):
+        x_support = episode["train"][0][0]  # only take data & only first batch
         x_support = x_support.to(device)
         x_support_var = Variable(x_support)
-        x_query = episode['test'][0][0]  # only take data & only first batch
+        x_query = episode["test"][0][0]  # only take data & only first batch
         x_query = x_query.to(device)
         x_query_var = Variable(x_query)
         n_support = x_support.shape[0] // n_way
@@ -353,7 +441,8 @@ class ProtoCLR(pl.LightningModule):
         support_size = n_way * n_support
 
         y_a_i = Variable(torch.from_numpy(np.repeat(range(n_way), n_support))).to(
-            self.device)  # (25,)
+            self.device
+        )  # (25,)
 
         x_b_i = x_query_var
         x_a_i = x_support_var
@@ -376,7 +465,8 @@ class ProtoCLR(pl.LightningModule):
         classifier_opt = torch.optim.Adam(classifier.parameters(), lr=inner_lr)
         if freeze_backbone is False:
             delta_opt = torch.optim.Adam(
-                filter(lambda p: p.requires_grad, encoder.parameters()), lr=inner_lr)
+                filter(lambda p: p.requires_grad, encoder.parameters()), lr=inner_lr
+            )
         # Finetuning
         if freeze_backbone is False:
             encoder.train()
@@ -398,7 +488,8 @@ class ProtoCLR(pl.LightningModule):
 
                 #####################################
                 selected_id = torch.from_numpy(
-                    rand_id[j: min(j+batch_size, support_size)]).to(device)
+                    rand_id[j : min(j + batch_size, support_size)]
+                ).to(device)
 
                 z_batch = x_a_i[selected_id]
                 y_batch = y_a_i[selected_id]
@@ -422,55 +513,68 @@ class ProtoCLR(pl.LightningModule):
         scores = classifier(output)
 
         y_query = torch.tensor(np.repeat(range(n_way), n_query)).to(device)
-        loss = F.cross_entropy(scores, y_query, reduction='mean')
+        loss = F.cross_entropy(scores, y_query, reduction="mean")
         _, predictions = torch.max(scores, dim=1)
         accuracy = torch.mean(predictions.eq(y_query).float())
         return loss, accuracy.item()
 
     def validation_step(self, batch, batch_idx):
         original_encoder_state = copy.deepcopy(self.encoder.state_dict())
-        if not self.mode == 'trainval':
+        if not self.mode == "trainval":
             original_encoder_state = copy.deepcopy(self.encoder.state_dict())
 
         if self.sup_finetune:
-            loss, accuracy = self.supervised_finetuning(self.encoder,
-                                                        episode=batch,
-                                                        inner_lr=self.sup_finetune_lr,
-                                                        total_epoch=self.sup_finetune_epochs,
-                                                        freeze_backbone=self.ft_freeze_backbone,
-                                                        finetune_batch_norm=self.finetune_batch_norm,
-                                                        device=self.device,
-                                                        n_way=self.eval_ways)
+            loss, accuracy = self.supervised_finetuning(
+                self.encoder,
+                episode=batch,
+                inner_lr=self.sup_finetune_lr,
+                total_epoch=self.sup_finetune_epochs,
+                freeze_backbone=self.ft_freeze_backbone,
+                finetune_batch_norm=self.finetune_batch_norm,
+                device=self.device,
+                n_way=self.eval_ways,
+            )
             self.encoder.load_state_dict(original_encoder_state)
-        elif self.mode == 'trainval':
+        elif self.mode == "trainval":
             with torch.no_grad():
-                loss, accuracy, _, _ = self.calculate_protoclr_loss(
-                    batch, ae=False)
+                loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
         else:
             with torch.no_grad():
-                loss, accuracy, _, _ = self.calculate_protoclr_loss(
-                    batch, ae=False)
-        self.log_dict({
-            'val_loss': loss.detach(),
-            'val_accuracy': accuracy
-        }, prog_bar=True)
+                loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
+        self.log_dict(
+            {"val_loss": loss.detach(), "val_accuracy": accuracy}, prog_bar=True
+        )
 
         return loss.item(), accuracy
 
     def test_step(self, batch, batch_idx):
         original_encoder_state = copy.deepcopy(self.encoder.state_dict())
         # if self.sup_finetune:
-        loss, accuracy = self.supervised_finetuning(self.encoder,
-                                                    episode=batch,
-                                                    inner_lr=self.sup_finetune_lr,
-                                                    total_epoch=self.sup_finetune_epochs,
-                                                    freeze_backbone=self.ft_freeze_backbone,
-                                                    finetune_batch_norm=self.finetune_batch_norm,
-                                                    device=self.device,
-                                                    n_way=self.eval_ways)
+        loss, accuracy = self.supervised_finetuning(
+            self.encoder,
+            episode=batch,
+            inner_lr=self.sup_finetune_lr,
+            total_epoch=self.sup_finetune_epochs,
+            freeze_backbone=self.ft_freeze_backbone,
+            finetune_batch_norm=self.finetune_batch_norm,
+            device=self.device,
+            n_way=self.eval_ways,
+        )
         self.encoder.load_state_dict(original_encoder_state)
-        self.log("test_loss", loss.item(), on_step=True,
-                 on_epoch=True, prog_bar=True, logger=True)
-        self.log("test_acc", accuracy, on_step=True,
-                 on_epoch=True, prog_bar=True, logger=True)
+        self.log(
+            "test_loss",
+            loss.item(),
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        self.log(
+            "test_acc",
+            accuracy,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
         return loss.item(), accuracy
