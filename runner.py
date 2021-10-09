@@ -73,6 +73,8 @@ def cactus(
             "n_ways": n_ways,
             "n_shots": n_shots,
             "query_shots": query,
+            "clustering_algo": clustering_alg,
+            "cluster_on_latent": cluster_on_latent
         },
         log_model=True,
     )
