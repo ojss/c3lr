@@ -177,6 +177,8 @@ def protoclr_ae(
                 "eval_ways": eval_ways,
                 "eval_support_shots": eval_support_shots,
                 "eval_query_shots": eval_query_shots,
+                "clustering_algo": clustering_alg,
+                "clustering_on_latent": cluster_on_latent,
                 "timestamp": str(datetime.now()),
             },
         )
