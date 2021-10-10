@@ -413,7 +413,7 @@ class ProtoCLR(pl.LightningModule):
 
         self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True)
 
-        return loss, accuracy
+        return loss.item(), accuracy
 
     @torch.enable_grad()
     def supervised_finetuning(
