@@ -382,16 +382,21 @@ class ProtoCLR(pl.LightningModule):
             # technically our prototypes now
             centroids = clf.cluster_centers_
 
-        squared_distances = torch.sum((centroids[None] - z_query[None])** 2, dim=-1) / tau
+        centroids = torch.from_numpy(centroids).unsqueeze(0)
+        z_query = torch.from_numpy(z_query).unsqueeze(0)
+        
+        # calculating CLR loss against the element in the cluster and its centroid
+        # against every other centroid
+
+        squared_distances = torch.sum((centroids.unsqueeze(2) - z_query.unsqueeze(1))** 2, dim=-1) / tau
         # squared_distances = euclidean_distances(centroids, z_query)
-        loss = F.cross_entropy(-torch.from_numpy(squared_distances), y_query)
+        loss = F.cross_entropy(-squared_distances.to(self.device), y_query)
 
         return loss
 
 
 
-        # calculating CLR loss against the element in the cluster and its centroid
-        # against every other centroid
+        
 
 
     def training_step(self, batch, batch_idx):
