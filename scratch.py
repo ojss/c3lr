@@ -50,22 +50,23 @@ model = ProtoCLR(
     n_support=1,
     n_query=3,
     batch_size=50,
-    distance="cosine",
+    distance="euclidean",
     τ=0.5,
     num_input_channels=1,
-    decoder_class=Decoder,
-    encoder_class=Encoder,
+    decoder_class=Decoder4L,
+    encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     ae=True,
     gamma=1.0,
     log_images=True,
+    clustering_algo='kmeans'
 )
 
-logger = WandbLogger(
-    project="ProtoCLR+AE",
-    config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
-)
+# logger = WandbLogger(
+#     project="ProtoCLR+AE",
+#     config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
+# )
 dataset_train = UnlabelledDataset(
     dataset="omniglot",
     datapath="./data/untarred",
@@ -95,11 +96,11 @@ trainer = pl.Trainer(
     limit_test_batches=600,
     callbacks=[
         EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
+        # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
     gpus=1,
-    logger=logger,
+    # logger=logger,
 )
 
 # logger.watch(model)

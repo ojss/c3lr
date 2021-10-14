@@ -9,6 +9,7 @@ import copy
 import warnings
 from typing import Any
 
+import hdbscan
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express as px
@@ -17,20 +18,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import umap
+import wandb
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearn import cluster
-from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
+from sklearn.metrics.pairwise import euclidean_distances
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
-import wandb
 from .pl_dataloaders import UnlabelledDataModule
-from .proto_utils import (CAE, Decoder4L, Encoder4L,
-                                                    get_images_labels_from_dl,
-                                                    get_prototypes,
-                                                    prototypical_loss)
+from .proto_utils import (
+    CAE,
+    Decoder4L,
+    Encoder4L,
+    get_prototypes,
+    prototypical_loss,
+    euclidean_distance
+)
 
 
 # Cell
@@ -262,6 +267,7 @@ class ProtoCLR(pl.LightningModule):
         τ=0.5,
         mode="trainval",
         eval_ways=5,
+        clustering_algo='spectral',
         sup_finetune=True,
         sup_finetune_lr=1e-3,
         sup_finetune_epochs=15,
@@ -273,6 +279,8 @@ class ProtoCLR(pl.LightningModule):
 
         self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim)
         self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim)
+
+        self.clustering_algo = clustering_algo
 
         # self.model = model
         self.ae = ae
@@ -351,6 +359,41 @@ class ProtoCLR(pl.LightningModule):
         )
         return loss, accuracy
 
+    def get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
+        tau = self.τ
+        emb_list = z.squeeze(0).detach().cpu()
+
+        xs = umap.UMAP(random_state=42).fit_transform(emb_list) # (n_samples, 2)
+        #
+        # e.g. [50*n_support,2]
+        z_support = xs[: ways * self.n_support]
+        # e.g. [50*n_query,2]
+        z_query = xs[ways * self.n_support :]
+        if self.clustering_algo == 'spectral':
+            clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
+        elif self.clustering_algo == 'hdbscan':
+            pass
+        elif self.clustering_algo == 'kmeans':
+            clf = cluster.KMeans(n_clusters=5)
+
+        predicted_labels = clf.fit_predict(xs)
+
+        if self.clustering_algo == 'kmeans':
+            # technically our prototypes now
+            centroids = clf.cluster_centers_
+
+        squared_distances = torch.sum((centroids[None] - z_query[None])** 2, dim=-1) / tau
+        # squared_distances = euclidean_distances(centroids, z_query)
+        loss = F.cross_entropy(-torch.from_numpy(squared_distances), y_query)
+
+        return loss
+
+
+
+        # calculating CLR loss against the element in the cluster and its centroid
+        # against every other centroid
+
+
     def training_step(self, batch, batch_idx):
         opt = self.optimizers()
         sch = self.lr_schedulers()
@@ -391,6 +434,7 @@ class ProtoCLR(pl.LightningModule):
         opt.zero_grad()
 
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
+        loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
 
         self.log("clr_loss", loss.item(), prog_bar=True)
         # adding the pixelwise reconstruction loss at the end
