@@ -22,7 +22,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearn import cluster
-from sklearn.metrics.pairwise import euclidean_distances
+from pytorch_metric_learning import losses
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
@@ -33,8 +33,7 @@ from .proto_utils import (
     Decoder4L,
     Encoder4L,
     get_prototypes,
-    prototypical_loss,
-    euclidean_distance
+    prototypical_loss
 )
 
 
@@ -384,19 +383,21 @@ class ProtoCLR(pl.LightningModule):
 
         centroids = torch.from_numpy(centroids).unsqueeze(0)
         z_query = torch.from_numpy(z_query).unsqueeze(0)
-        
+
         # calculating CLR loss against the element in the cluster and its centroid
         # against every other centroid
 
         squared_distances = torch.sum((centroids.unsqueeze(2) - z_query.unsqueeze(1))** 2, dim=-1) / tau
         # squared_distances = euclidean_distances(centroids, z_query)
-        loss = F.cross_entropy(-squared_distances.to(self.device), y_query)
-
+        #
+        loss_fn = losses.NTXentLoss(temperature=.5)
+        loss = loss_fn(z_query.squeeze(0), centroids.squeeze(0))
         return loss
 
 
 
-        
+        # calculating CLR loss against the element in the cluster and its centroid
+        # against every other centroid
 
 
     def training_step(self, batch, batch_idx):
