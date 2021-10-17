@@ -18,23 +18,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import umap
-import wandb
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearn import cluster
-from pytorch_metric_learning import losses
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
+import wandb
 from .pl_dataloaders import UnlabelledDataModule
-from .proto_utils import (
-    CAE,
-    Decoder4L,
-    Encoder4L,
-    get_prototypes,
-    prototypical_loss
-)
+from .proto_utils import (CAE, Decoder4L, Encoder4L,
+                                                    get_prototypes,
+                                                    nt_xent_loss,
+                                                    prototypical_loss)
 
 
 # Cell
@@ -381,17 +377,15 @@ class ProtoCLR(pl.LightningModule):
             # technically our prototypes now
             centroids = clf.cluster_centers_
 
-        centroids = torch.from_numpy(centroids).unsqueeze(0)
-        z_query = torch.from_numpy(z_query).unsqueeze(0)
+        centroids = torch.from_numpy(centroids)
+        z_query = torch.from_numpy(z_query)
 
         # calculating CLR loss against the element in the cluster and its centroid
         # against every other centroid
 
-        squared_distances = torch.sum((centroids.unsqueeze(2) - z_query.unsqueeze(1))** 2, dim=-1) / tau
-        # squared_distances = euclidean_distances(centroids, z_query)
-        #
-        loss_fn = losses.NTXentLoss(temperature=.5)
-        loss = loss_fn(z_query.squeeze(0), centroids.squeeze(0))
+        # squared_distances = torch.sum((centroids.unsqueeze(2) - z_query.unsqueeze(1))** 2, dim=-1) / tau
+
+        loss = nt_xent_loss(centroids, z_query, predicted_labels)
         return loss
 
 

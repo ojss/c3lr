@@ -41,7 +41,7 @@ dm = UnlabelledDataModule(
     batch_size=50,
     seed=10,
     mode="trainval",
-    num_workers=0,
+    num_workers=6,
     eval_ways=5,
     eval_support_shots=1,
     eval_query_shots=15,
@@ -84,7 +84,7 @@ dl = get_episode_loader(
     test_shots=15,
     batch_size=1,
     split="val",
-    num_workers=0
+    num_workers=6
 )
 
 f = partial(get_images_labels_from_dl, dl)
@@ -101,7 +101,7 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    # gpus=1,
+    gpus=1,
     # logger=logger,
 )
 
