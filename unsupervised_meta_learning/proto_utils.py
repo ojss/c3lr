@@ -128,40 +128,13 @@ def prototypical_loss(prototypes, embeddings, targets,
     return loss, accuracy.item()
 
 # Cell
-def nt_xent_loss(emb_i, emb_j, cluster_labels, temperature=1):
-
-    """
-    emb_i: centroids
-    emb_j: other images
-    """
-    z_i = F.normalize(emb_i, dim=1)
-    z_j = F.normalize(emb_j, dim=1)
-
-    representations = torch.cat([z_i, z_j], dim=0)
-    # against each centroid - image pair, cosine similarity is calculated
-
-    similarity_matrix = F.cosine_similarity(z_i.unsqueeze(1), z_j.unsqueeze(0), dim=2) # [5, 150]
-            
-    def l_ij(i, j):
-        z_i_, z_j_ = representations[i], representations[j]
-        sim_i_j = similarity_matrix[i, j]
-                
-        numerator = torch.exp(sim_i_j / temperature)
-        one_for_not_i = torch.ones((5)).to(emb_i.device).scatter_(0, torch.tensor([i]), 0.0)
-            
-        denominator = torch.sum(
-            one_for_not_i * torch.exp(similarity_matrix[i, :] / temperature)
-        )    
-                
-        loss_ij = -torch.log(numerator / denominator)
-
-        return loss_ij.squeeze(0)
-
-    N = 149
-    loss = 0.0
-    for k in range(0, N):
-        loss += l_ij(k, k + N) + l_ij(k + N, k)
-    return 1.0 / (2*N) * loss
+def nt_xent_loss(z_i, z_j, query_labels, temperature=.5, reduction='mean'):
+    N = z_j.shape[1]
+    # calculating distance from every centroid to every augmented image
+    dists = euclidean_distance(z_i, z_j) / temperature
+    labels = torch.zeros(N).to(dists.device).long()
+    loss = F.cross_entropy(dists, query_labels.unsqueeze(0).long(), reduction=reduction)
+    return loss
 
 # Cell
 class CNN_4Layer(nn.Module):

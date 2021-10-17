@@ -20,6 +20,8 @@ import torch.nn.functional as F
 import umap
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
+from sklearnex import patch_sklearn
+patch_sklearn()
 from sklearn import cluster
 from torch.autograd import Variable
 from torchvision.utils import make_grid
@@ -356,14 +358,16 @@ class ProtoCLR(pl.LightningModule):
 
     def get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
         tau = self.τ
+        loss = 0.
         emb_list = z.squeeze(0).detach().cpu()
 
-        xs = umap.UMAP(random_state=42).fit_transform(emb_list) # (n_samples, 2)
+        mapper = umap.UMAP(random_state=42, n_components=3).fit(emb_list) # (n_samples, 3)
+        reduced_z = mapper.transform(emb_list)
         #
         # e.g. [50*n_support,2]
-        z_support = xs[: ways * self.n_support]
+        z_support = z[:, : ways * self.n_support, :] # TODO: make use of this in the loss somewhere
         # e.g. [50*n_query,2]
-        z_query = xs[ways * self.n_support :]
+        z_query = z[:, ways * self.n_support :, :]
         if self.clustering_algo == 'spectral':
             clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
         elif self.clustering_algo == 'hdbscan':
@@ -371,21 +375,15 @@ class ProtoCLR(pl.LightningModule):
         elif self.clustering_algo == 'kmeans':
             clf = cluster.KMeans(n_clusters=5)
 
-        predicted_labels = clf.fit_predict(xs)
-
+        predicted_labels = clf.fit_predict(reduced_z)
+        query_labels = predicted_labels[ways * self.n_support :]
+        query_labels = torch.from_numpy(query_labels).to(self.device)
         if self.clustering_algo == 'kmeans':
             # technically our prototypes now
             centroids = clf.cluster_centers_
+            centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
 
-        centroids = torch.from_numpy(centroids)
-        z_query = torch.from_numpy(z_query)
-
-        # calculating CLR loss against the element in the cluster and its centroid
-        # against every other centroid
-
-        # squared_distances = torch.sum((centroids.unsqueeze(2) - z_query.unsqueeze(1))** 2, dim=-1) / tau
-
-        loss = nt_xent_loss(centroids, z_query, predicted_labels)
+            loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
         return loss
 
 
@@ -436,7 +434,14 @@ class ProtoCLR(pl.LightningModule):
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
         loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
 
-        self.log("clr_loss", loss.item(), prog_bar=True)
+
+
+        self.log_dict({
+            'clr_loss': loss.item(),
+            'cluster_clr': loss_cluster.item()
+        }, prog_bar=True)
+
+        loss += loss_cluster
         # adding the pixelwise reconstruction loss at the end
         # it has been broadcasted such that each support source image is broadcasted thrice over the three
         # query set images - which are the augmentations of the support image

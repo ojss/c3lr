@@ -6,6 +6,7 @@ from functools import partial
 
 import fire
 import pytorch_lightning as pl
+from pytorch_lightning import callbacks
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
@@ -73,8 +74,6 @@ def cactus(
             "n_ways": n_ways,
             "n_shots": n_shots,
             "query_shots": query,
-            "clustering_algo": clustering_alg,
-            "cluster_on_latent": cluster_on_latent
         },
         log_model=True,
     )
@@ -159,8 +158,22 @@ def protoclr_ae(
         distance=distance,
         τ=tau,  # keeping it at .5 based on SimCLR
         ae=True,
+        clustering_algo=clustering_alg,
         log_images=log_images,
     )
+    dataset_train = UnlabelledDataset(
+        dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
+    )
+    dl = get_episode_loader(
+        dataset,
+        datapath,
+        ways=5,
+        shots=5,
+        test_shots=15,
+        batch_size=1,
+        split="val",
+    )
+    image_f = partial(get_images_labels_from_dl, dl)
 
     if logging == "wandb":
         logger = WandbLogger(
@@ -183,35 +196,8 @@ def protoclr_ae(
             },
         )
         logger.watch(model)
-
-    elif logging == "tb":
-        logger = TensorBoardLogger(save_dir="tb_logs")
-
-    dataset_train = UnlabelledDataset(
-        dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
-    )
-    dl = get_episode_loader(
-        dataset,
-        datapath,
-        ways=5,
-        shots=5,
-        test_shots=15,
-        batch_size=1,
-        split="val",
-    )
-    image_f = partial(get_images_labels_from_dl, dl)
-    trainer = pl.Trainer(
-        profiler="simple",
-        max_epochs=10000,
-        min_epochs=500,
-        limit_train_batches=100,
-        fast_dev_run=False,
-        limit_val_batches=15,
-        limit_test_batches=600,
-        callbacks=[
-            WandbImageCallback(get_train_images(dataset_train, 8))
-            if logging == "wandb"
-            else TensorBoardImageCallback(get_train_images(dataset_train, 8)),
+        cbs = [
+            WandbImageCallback(get_train_images(dataset_train, 8)),
             EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
             UMAPClusteringCallback(
                 image_f,
@@ -220,7 +206,21 @@ def protoclr_ae(
                 cluster_on_latent=cluster_on_latent,
             ),
             ConfidenceIntervalCallback(),
-        ],
+        ]
+
+    elif logging == "tb":
+        logger = TensorBoardLogger(save_dir="tb_logs")
+        cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
+
+    trainer = pl.Trainer(
+        profiler="simple",
+        max_epochs=10000,
+        min_epochs=500,
+        limit_train_batches=100,
+        fast_dev_run=False,
+        limit_val_batches=15,
+        limit_test_batches=600,
+        callbacks=cbs,
         num_sanity_val_steps=2,
         gpus=-1,
         logger=logger,
