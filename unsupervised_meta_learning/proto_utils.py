@@ -133,7 +133,7 @@ def nt_xent_loss(z_i, z_j, query_labels, temperature=.5, reduction='mean'):
     # calculating distance from every centroid to every augmented image
     dists = euclidean_distance(z_i, z_j) / temperature
     labels = torch.zeros(N).to(dists.device).long()
-    loss = F.cross_entropy(dists, query_labels.unsqueeze(0).long(), reduction=reduction)
+    loss = F.cross_entropy(-dists, labels.unsqueeze(0).long(), reduction=reduction)
     return loss
 
 # Cell

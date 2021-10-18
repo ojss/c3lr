@@ -21,13 +21,14 @@ import umap
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearnex import patch_sklearn
+
 patch_sklearn()
+import wandb
 from sklearn import cluster
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
-import wandb
 from .pl_dataloaders import UnlabelledDataModule
 from .proto_utils import (CAE, Decoder4L, Encoder4L,
                                                     get_prototypes,
