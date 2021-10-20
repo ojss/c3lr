@@ -140,6 +140,7 @@ def nt_xent_loss(z_i, z_j, query_labels, temperature=.5, reduction='mean'):
 def cluster_diff_loss(
     z: torch.Tensor,
     labels: torch.Tensor,
+    ways,
     similarity="cosine",
     temperature=0.5,
     reduction="mean",
@@ -164,7 +165,7 @@ def cluster_diff_loss(
             torch.tensor([(0 if similarity == 'euclidean' else 1) / temperature for _ in range(sim.shape[0])], device=z.device).long(),
             reduction='mean'
         )
-    return loss / 150
+    return loss / ways
 
 
 # Cell

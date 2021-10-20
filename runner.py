@@ -7,7 +7,7 @@ from functools import partial
 import fire
 import pytorch_lightning as pl
 from pytorch_lightning import callbacks
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 import wandb
@@ -111,6 +111,8 @@ def protoclr_ae(
     inner_lr=1e-3,
     gamma=1.0,
     distance="euclidean",
+    ckpt_dir='./ckpts',
+    ae=True,
     tau=0.5,
     eval_ways=5,
     clustering_alg="kmeans",
@@ -156,8 +158,8 @@ def protoclr_ae(
         decoder_class=decoder_class,
         num_input_channels=num_input_channels,
         distance=distance,
-        τ=tau,  # keeping it at .5 based on SimCLR
-        ae=True,
+        τ=tau,
+        ae=ae,
         clustering_algo=clustering_alg,
         log_images=log_images,
     )
@@ -184,6 +186,7 @@ def protoclr_ae(
                 "lr": lr,
                 "inner_lr": inner_lr,
                 "gamma": gamma,
+                "ae": ae,
                 "τ": tau,
                 "distance": distance,
                 "dataset": dataset,
@@ -196,8 +199,8 @@ def protoclr_ae(
             },
         )
         logger.watch(model)
+
         cbs = [
-            WandbImageCallback(get_train_images(dataset_train, 8)),
             EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
             UMAPClusteringCallback(
                 image_f,
@@ -207,10 +210,20 @@ def protoclr_ae(
             ),
             ConfidenceIntervalCallback(),
         ]
+        if ae == True:
+            cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
 
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
         cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
+
+    cbs.append(
+        ModelCheckpoint(
+            dirpath=ckpt_dir,
+            filename="{epoch}-{step}-{val_loss:.2f}-{other_metric:.2f}",
+            every_n_epochs=100,
+        )
+    )
 
     trainer = pl.Trainer(
         profiler="simple",

@@ -247,7 +247,6 @@ class UMAPClusteringCallback(pl.Callback):
                 wandb.log({"KMeans results": fig1}, step=trainer.global_step)
             elif self.logging_tech == "tb":
                 pass
-        plt.clf()
 
 
 # Cell
@@ -285,12 +284,15 @@ class ProtoCLR(pl.LightningModule):
         super().__init__()
 
         self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim)
-        self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim)
 
         self.clustering_algo = clustering_algo
 
-        # self.model = model
         self.ae = ae
+        if self.ae == True:
+            self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim)
+        else:
+            self.decoder = nn.Identity()
+
         self.batch_size = batch_size
         self.n_support = n_support
         self.n_query = n_query
@@ -332,7 +334,7 @@ class ProtoCLR(pl.LightningModule):
         z = self.encoder(x.view(-1, *x.shape[-3:]))
         embeddings = nn.Flatten()(z)
         recons = self.decoder(z)
-        return embeddings.view(*x.shape[:-3], -1), recons.view(*x.shape)
+        return embeddings.view(*x.shape[:-3], -1), recons.view(*x.shape) if self.ae == True else torch.tensor(-1.)
 
     def _get_pixelwise_reconstruction_loss(self, x, x_hat, ways):
         mse_loss = (
@@ -369,7 +371,7 @@ class ProtoCLR(pl.LightningModule):
     def get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
         tau = self.τ
         loss = 0.
-        emb_list = F.normalize(z.squeeze(0).detach()).cpu()
+        emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
 
         mapper = umap.UMAP(random_state=42, n_components=3).fit(emb_list) # (n_samples, 3)
         reduced_z = mapper.transform(emb_list)
@@ -395,14 +397,10 @@ class ProtoCLR(pl.LightningModule):
             # centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
 
             # loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
-            loss = cluster_diff_loss(z_query, pred_query_labels, similarity=self.distance, temperature=tau)
+            loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
+        del mapper
+        del clf
         return loss
-
-
-
-        # calculating CLR loss against the element in the cluster and its centroid
-        # against every other centroid
-
 
     def training_step(self, batch, batch_idx):
         opt = self.optimizers()
