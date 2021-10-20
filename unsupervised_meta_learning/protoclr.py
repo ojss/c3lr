@@ -208,7 +208,7 @@ class UMAPClusteringCallback(pl.Callback):
                 pl_module.eval()
                 z, _ = pl_module(imgs)
                 pl_module.train()
-            z = z.detach().cpu().tolist()
+            z = F.normalize(z.detach()).cpu().tolist()
             xs = umap.UMAP(random_state=42, n_components=3).fit_transform(z)
             data = z if self.cluster_on_latent == True else xs
 
@@ -369,7 +369,7 @@ class ProtoCLR(pl.LightningModule):
     def get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
         tau = self.τ
         loss = 0.
-        emb_list = z.squeeze(0).detach().cpu()
+        emb_list = F.normalize(z.squeeze(0).detach()).cpu()
 
         mapper = umap.UMAP(random_state=42, n_components=3).fit(emb_list) # (n_samples, 3)
         reduced_z = mapper.transform(emb_list)

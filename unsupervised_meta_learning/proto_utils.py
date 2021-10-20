@@ -164,7 +164,7 @@ def cluster_diff_loss(
             torch.tensor([(0 if similarity == 'euclidean' else 1) / temperature for _ in range(sim.shape[0])], device=z.device).long(),
             reduction='mean'
         )
-    return loss
+    return loss / 150
 
 
 # Cell
