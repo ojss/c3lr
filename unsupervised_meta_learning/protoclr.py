@@ -23,14 +23,15 @@ from scipy import stats
 from sklearnex import patch_sklearn
 
 patch_sklearn()
-import wandb
 from sklearn import cluster
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
+import wandb
 from .pl_dataloaders import UnlabelledDataModule
 from .proto_utils import (CAE, Decoder4L, Encoder4L,
+                                                    cluster_diff_loss,
                                                     get_prototypes,
                                                     nt_xent_loss,
                                                     prototypical_loss)
@@ -151,20 +152,26 @@ class UMAPCallback(pl.Callback):
                 z, _ = pl_module(imgs)
                 pl_module.train()
             z = z.detach().cpu().tolist()
-            xs = umap.UMAP(random_state=42).fit_transform(z)
-            plt.scatter(xs[:, 0], xs[:, 1], s=0.5, c=labels, cmap="turbo")
+            xs = umap.UMAP(random_state=42, n_components=3).fit_transform(z)
+            fig = px.scatter_3d(
+                x=xs[:, 0],
+                y=xs[:, 1],
+                z=xs[:, 2],
+                color=labels,
+                template="seaborn",
+                size_max=18,
+                color_discrete_sequence=px.colors.qualitative.Prism,
+                color_continuous_scale=px.colors.diverging.Portland,
+            )
             if self.logging_tech == "wandb":
                 wandb.log(
                     {
-                        "UMAP clustering of embeddings": wandb.Image(plt),
+                        "UMAP clustering of embeddings": fig,
                     },
                     step=trainer.global_step,
                 )
             elif self.logging_tech == "tb":
                 pass
-        plt.clf()
-        # return super().on_validation_end(trainer, pl_module)
-
 
 # Cell
 class UMAPClusteringCallback(pl.Callback):
@@ -202,7 +209,7 @@ class UMAPClusteringCallback(pl.Callback):
                 z, _ = pl_module(imgs)
                 pl_module.train()
             z = z.detach().cpu().tolist()
-            xs = umap.UMAP(random_state=42).fit_transform(z)
+            xs = umap.UMAP(random_state=42, n_components=3).fit_transform(z)
             data = z if self.cluster_on_latent == True else xs
 
             if self.cluster_alg == "kmeans":
@@ -212,17 +219,19 @@ class UMAPClusteringCallback(pl.Callback):
                     data
                 )
 
-            fig0 = px.scatter(
+            fig0 = px.scatter_3d(
                 x=xs[:, 0],
                 y=xs[:, 1],
+                z=xs[:, 2],
                 color=labels,
                 template="seaborn",
                 color_discrete_sequence=px.colors.qualitative.Prism,
                 color_continuous_scale=px.colors.diverging.Portland,
             )
-            fig1 = px.scatter(
+            fig1 = px.scatter_3d(
                 x=xs[:, 0],
                 y=xs[:, 1],
+                z=xs[:, 2],
                 color=predicted_labels,
                 template="seaborn",
                 color_discrete_sequence=px.colors.qualitative.Prism,
@@ -366,25 +375,27 @@ class ProtoCLR(pl.LightningModule):
         reduced_z = mapper.transform(emb_list)
         #
         # e.g. [50*n_support,2]
-        z_support = z[:, : ways * self.n_support, :] # TODO: make use of this in the loss somewhere
+        z_support = z[:, : ways * self.n_support, :] # TODO: make use of this in the loss somewhere?
         # e.g. [50*n_query,2]
         z_query = z[:, ways * self.n_support :, :]
-        if self.clustering_algo == 'spectral':
-            clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
+        if self.clustering_algo == 'kmeans':
+            clf = cluster.KMeans(n_clusters=5)
         elif self.clustering_algo == 'hdbscan':
             pass
-        elif self.clustering_algo == 'kmeans':
-            clf = cluster.KMeans(n_clusters=5)
+        elif self.clustering_algo == 'spectral':
+            clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
 
         predicted_labels = clf.fit_predict(reduced_z)
-        query_labels = predicted_labels[ways * self.n_support :]
-        query_labels = torch.from_numpy(query_labels).to(self.device)
-        if self.clustering_algo == 'kmeans':
-            # technically our prototypes now
-            centroids = clf.cluster_centers_
-            centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
+        pred_query_labels = predicted_labels[ways * self.n_support :]
+        pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
 
-            loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
+        if self.clustering_algo == 'kmeans':
+            # # technically our prototypes now
+            # centroids = clf.cluster_centers_
+            # centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
+
+            # loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
+            loss = cluster_diff_loss(z_query, pred_query_labels, similarity=self.distance, temperature=tau)
         return loss
 
 

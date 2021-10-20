@@ -59,9 +59,9 @@ model = ProtoCLR(
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     ae=True,
-    gamma=1.0,
+    gamma=.001,
     log_images=True,
-    clustering_algo='kmeans'
+    clustering_algo="kmeans",
 )
 
 # logger = WandbLogger(
@@ -84,7 +84,7 @@ dl = get_episode_loader(
     test_shots=15,
     batch_size=1,
     split="val",
-    num_workers=0
+    num_workers=0,
 )
 
 f = partial(get_images_labels_from_dl, dl)
@@ -98,10 +98,11 @@ trainer = pl.Trainer(
     limit_test_batches=600,
     callbacks=[
         EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
+        # UMAPCallback(f, every_n_epochs=1)
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    # gpus=1,
+    gpus=1,
     # logger=logger,
 )
 
