@@ -5,27 +5,27 @@ __all__ = ['collate_task', 'collate_task_batch', 'get_episode_loader', 'Unlabell
            'UnlabelledDataModule', 'OmniglotDataModule', 'MiniImagenetDataModule']
 
 # Cell
-#export
-import h5py
-import os
+# export
+
 import io
-import numpy as np
 import json
+import os
+from collections import OrderedDict
+
+import h5py
+import numpy as np
 import pytorch_lightning as pl
 import torch
-import torch.nn.functional as F
-
-from collections import OrderedDict
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, ConcatDataset
+from sklearn.preprocessing import LabelEncoder
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
-from torchvision.transforms.functional import to_tensor
-from torchvision.utils import make_grid
+from torchmeta.datasets.helpers import (cifar_fs, cub, doublemnist,
+                                        miniimagenet, omniglot, tieredimagenet,
+                                        triplemnist)
+from torchmeta.utils.data import BatchMetaDataLoader, MetaDataLoader
 from torchvision import transforms
 
-from torchmeta.datasets.helpers import (omniglot, miniimagenet, tieredimagenet,
-                                        cub, cifar_fs, doublemnist, triplemnist)
-from torchmeta.utils.data import BatchMetaDataLoader, MetaDataLoader
 
 # Cell
 
@@ -199,7 +199,9 @@ class UnlabelledDataset(Dataset):
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
-        targets = [x[1] for x in classes]
+        targets = targets = np.array(
+            LabelEncoder().fit_transform([x[1] for x in classes])
+        ).repeat(20)
         classes = [x[0] for x in classes]
         data = np.concatenate(classes)
         return data, targets
@@ -209,9 +211,10 @@ class UnlabelledDataset(Dataset):
 
     def __getitem__(self, index):
         if self.dataset == "cub":
-            # image, target = self.data[index]
+            target = self.data[index]
             image = Image.open(io.BytesIO(self.data[index])).convert("RGB")
         else:
+            target = self.data[index]
             image = Image.fromarray(self.data[index])
 
         view_list = []
@@ -220,22 +223,22 @@ class UnlabelledDataset(Dataset):
         for _ in range(self.n_support):
             if not self.no_aug_support:
                 view_list.append(self.transform(image).unsqueeze(0))
-                # targets.append(target)
+                targets.append(target)
             else:
                 assert self.n_support == 1
                 view_list.append(self.original_transform(image).unsqueeze(0))
-                # targets.append(target)
+                targets.append(target)
 
         for _ in range(self.n_query):
             if not self.no_aug_query:
                 view_list.append(self.transform(image).unsqueeze(0))
-                # targets.append(target)
+                targets.append(target)
             else:
                 assert self.n_query == 1
                 view_list.append(self.original_transform(image).unsqueeze(0))
-                # targets.append(target)
+                targets.append(target)
 
-        return dict(data=torch.cat(view_list),)  # labels=targets)
+        return dict(data=torch.cat(view_list), labels=targets)
 
 
 # Cell

@@ -11,7 +11,7 @@ import torch
 
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from pytorch_lightning.profiler import PyTorchProfiler
+from pytorch_lightning.profiler import PyTorchProfiler, SimpleProfiler
 
 import wandb
 from unsupervised_meta_learning.cactus import *
@@ -117,6 +117,7 @@ def protoclr_ae(
     eval_query_shots=15,
     logging="wandb",
     log_images=False,
+    torch_profiler=True
 ):
 
     dm = UnlabelledDataModule(
@@ -215,7 +216,10 @@ def protoclr_ae(
         )
     )
     
-    profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+    if torch_profiler == True:
+        profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+    else:
+        profiler = SimpleProfiler()
 
     trainer = pl.Trainer(
         profiler=profiler,
