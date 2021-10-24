@@ -117,7 +117,8 @@ def protoclr_ae(
     eval_query_shots=15,
     logging="wandb",
     log_images=False,
-    torch_profiler=True
+    torch_profiler=True,
+    oracle_mode=False
 ):
 
     dm = UnlabelledDataModule(
@@ -159,6 +160,7 @@ def protoclr_ae(
         ae=ae,
         clustering_algo=clustering_alg,
         log_images=log_images,
+        oracle_mode=oracle_mode
     )
     dataset_train = UnlabelledDataset(
         dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
@@ -186,6 +188,7 @@ def protoclr_ae(
                 "eval_query_shots": eval_query_shots,
                 "clustering_algo": clustering_alg,
                 "clustering_on_latent": cluster_on_latent,
+                "oracle_mode": oracle_mode,
                 "timestamp": str(datetime.now()),
             },
         )
