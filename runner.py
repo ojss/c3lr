@@ -211,7 +211,7 @@ def protoclr_ae(
     cbs.append(
         ModelCheckpoint(
             dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}/",
-            filename="{epoch}-{step}-{val_loss:.2f}",
+            filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
             every_n_epochs=100,
         )
     )
