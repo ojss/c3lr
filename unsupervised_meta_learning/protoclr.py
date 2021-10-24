@@ -280,6 +280,7 @@ class ProtoCLR(pl.LightningModule):
         ft_freeze_backbone=True,
         finetune_batch_norm=False,
         log_images=True,
+        oracle_mode=False
     ):
         super().__init__()
 
@@ -317,6 +318,7 @@ class ProtoCLR(pl.LightningModule):
         self.finetune_batch_norm = finetune_batch_norm
 
         self.log_images = log_images
+        self.oracle_mode = oracle_mode
 
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
@@ -397,9 +399,14 @@ class ProtoCLR(pl.LightningModule):
             # centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
 
             # loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
-            loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
+            # loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
+            if self.oracle_mode:
+                loss = cluster_diff_loss(z_query, y_query, self.eval_ways, similarity=self.distance, temperature=tau)
+            else:
+                loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
         del mapper
         del clf
+
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -442,8 +449,15 @@ class ProtoCLR(pl.LightningModule):
         opt.zero_grad()
 
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
-        loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
-
+        if self.oracle_mode:
+            # basically leaking info to check if things work in our favor
+            # works only for omniglot at the moment
+            labels = batch['labels'][0]
+            y_support = labels[: self.n_support * ways]
+            y_query = y_support.repeat_interleave(self.n_query)
+            loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
+        else:
+            loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
 
 
         self.log_dict({

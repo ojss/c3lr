@@ -211,10 +211,12 @@ class UnlabelledDataset(Dataset):
 
     def __getitem__(self, index):
         if self.dataset == "cub":
-            target = self.data[index]
+            target = self.targets[index]
             image = Image.open(io.BytesIO(self.data[index])).convert("RGB")
         else:
-            target = self.data[index]
+            # this is for oracle mode
+            # currently only works with omniglot, make changes in _extract_data_from_hdf5 above.
+            target = self.targets[index]
             image = Image.fromarray(self.data[index])
 
         view_list = []

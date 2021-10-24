@@ -69,6 +69,7 @@ model = ProtoCLR(
     gamma=.001,
     log_images=True,
     clustering_algo="kmeans",
+    oracle_mode=True
 )
 
 # logger = WandbLogger(
