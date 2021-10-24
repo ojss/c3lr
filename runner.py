@@ -1,39 +1,35 @@
+import glob
 import os
 import warnings
 from datetime import datetime
-from pathlib import Path
 from functools import partial
+from pathlib import Path
 
 import fire
 import pytorch_lightning as pl
-from pytorch_lightning import callbacks
+import torch
+
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.profiler import PyTorchProfiler
 
 import wandb
 from unsupervised_meta_learning.cactus import *
-from unsupervised_meta_learning.pl_dataloaders import (
-    UnlabelledDataModule,
-    UnlabelledDataset,
-    get_episode_loader,
-)
-from unsupervised_meta_learning.proto_utils import (
-    Decoder4L,
-    Decoder4L4Mini,
-    Encoder,
-    Decoder,
-    get_images_labels_from_dl,
-)
-from unsupervised_meta_learning.protoclr import (
-    ConfidenceIntervalCallback,
-    ProtoCLR,
-    TensorBoardImageCallback,
-    UMAPCallback,
-    UMAPClusteringCallback,
-    WandbImageCallback,
-    get_train_images,
-)
-from unsupervised_meta_learning.protonets import CactusPrototypicalModel, ProtoModule
+from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
+                                                       UnlabelledDataset,
+                                                       get_episode_loader)
+from unsupervised_meta_learning.proto_utils import (Decoder, Decoder4L,
+                                                    Decoder4L4Mini, Encoder,
+                                                    get_images_labels_from_dl)
+from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
+                                                 ProtoCLR,
+                                                 TensorBoardImageCallback,
+                                                 UMAPCallback,
+                                                 UMAPClusteringCallback,
+                                                 WandbImageCallback,
+                                                 get_train_images)
+from unsupervised_meta_learning.protonets import (CactusPrototypicalModel,
+                                                  ProtoModule)
 
 
 def cactus(
@@ -111,7 +107,7 @@ def protoclr_ae(
     inner_lr=1e-3,
     gamma=1.0,
     distance="euclidean",
-    ckpt_dir='./ckpts',
+    ckpt_dir=Path("./ckpts"),
     ae=True,
     tau=0.5,
     eval_ways=5,
@@ -167,13 +163,7 @@ def protoclr_ae(
         dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
     )
     dl = get_episode_loader(
-        dataset,
-        datapath,
-        ways=5,
-        shots=5,
-        test_shots=15,
-        batch_size=1,
-        split="val",
+        dataset, datapath, ways=5, shots=5, test_shots=15, batch_size=1, split="val",
     )
     image_f = partial(get_images_labels_from_dl, dl)
 
@@ -219,14 +209,16 @@ def protoclr_ae(
 
     cbs.append(
         ModelCheckpoint(
-            dirpath=ckpt_dir,
-            filename="{epoch}-{step}-{val_loss:.2f}-{other_metric:.2f}",
+            dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}/",
+            filename="{epoch}-{step}-{val_loss:.2f}",
             every_n_epochs=100,
         )
     )
+    
+    profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
     trainer = pl.Trainer(
-        profiler="simple",
+        profiler=profiler,
         max_epochs=10000,
         min_epochs=500,
         limit_train_batches=100,

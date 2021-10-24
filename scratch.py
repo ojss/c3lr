@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
 import warnings
+from pathlib import Path
+import torch
 from numpy import mod
 from functools import partial
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.profiler import PyTorchProfiler
 
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
@@ -28,6 +32,9 @@ from unsupervised_meta_learning.protoclr import (
     UMAPClusteringCallback,
     get_train_images,
 )
+
+profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+
 
 dm = UnlabelledDataModule(
     "omniglot",
@@ -58,7 +65,7 @@ model = ProtoCLR(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    ae=False,
+    ae=True,
     gamma=.001,
     log_images=True,
     clustering_algo="kmeans",
@@ -90,15 +97,15 @@ dl = get_episode_loader(
 f = partial(get_images_labels_from_dl, dl)
 
 trainer = pl.Trainer(
-    profiler="simple",
-    max_epochs=2,
+    profiler=profiler,
+    max_epochs=1,
     limit_train_batches=100,
     fast_dev_run=False,
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[
         EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        # UMAPCallback(f, every_n_epochs=1)
+        # UMAPCallback(get_train_images, every_n_epochs=1)ls
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
