@@ -115,6 +115,8 @@ def protoclr_ae(
     cluster_on_latent=False,
     eval_support_shots=1,
     eval_query_shots=15,
+    n_images=None,
+    n_classes=None,
     logging="wandb",
     log_images=False,
     torch_profiler=True,
@@ -128,8 +130,8 @@ def protoclr_ae(
         transform=None,
         n_support=1,
         n_query=3,
-        n_images=None,
-        n_classes=None,
+        n_images=n_images,
+        n_classes=n_classes,
         batch_size=50,
         seed=10,
         mode="trainval",
@@ -223,7 +225,10 @@ def protoclr_ae(
         profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
     else:
         profiler = SimpleProfiler()
-
+    if torch.cuda.is_available():
+        gpus = -1
+    else:
+        gpus=None
     trainer = pl.Trainer(
         profiler=profiler,
         max_epochs=10000,
@@ -234,7 +239,7 @@ def protoclr_ae(
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
-        gpus=-1,
+        gpus=gpus,
         logger=logger,
     )
 
