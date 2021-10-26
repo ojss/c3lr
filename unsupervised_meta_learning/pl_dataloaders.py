@@ -383,6 +383,8 @@ class UnlabelledDataModule(pl.LightningDataModule):
                 self.datapath,
                 "val",
                 transform=None,
+                n_images=self.n_images,
+                n_classes=self.n_classes,
                 n_support=self.n_support,
                 n_query=self.n_query,
                 no_aug_support=self.no_aug_support,

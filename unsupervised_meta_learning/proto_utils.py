@@ -155,7 +155,8 @@ def cluster_diff_loss(
     elif similarity == 'euclidean':
         f_sim = lambda x, y: torch.sum((x - y) ** 2, dim=-1)
     loss = torch.tensor(0.).to(z.device)
-    z_labels = torch.cat([z.squeeze(0), labels.reshape([150, 1])], dim=-1)
+    z_labels = torch.cat([z.squeeze(0), labels.reshape([z.shape[1], 1])], dim=-1)
+
     for label in labels.unique().tolist():
         # the label is in the last dimension so using -1 is convenient
         z_j_t = z_labels[z_labels[:, -1] == label][:, :-1] # after filtering ignoring the label column
