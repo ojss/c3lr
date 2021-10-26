@@ -44,7 +44,7 @@ dm = UnlabelledDataModule(
     n_support=1,
     n_query=3,
     n_images=None,
-    n_classes=None,
+    n_classes=5,
     batch_size=50,
     seed=10,
     mode="trainval",
@@ -99,7 +99,7 @@ f = partial(get_images_labels_from_dl, dl)
 
 trainer = pl.Trainer(
     profiler=profiler,
-    max_epochs=1,
+    max_epochs=3,
     limit_train_batches=100,
     fast_dev_run=False,
     limit_val_batches=15,
