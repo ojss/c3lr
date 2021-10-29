@@ -21,7 +21,6 @@ import umap
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearnex import patch_sklearn
-
 patch_sklearn()
 from sklearn import cluster
 from torch.autograd import Variable
@@ -29,11 +28,11 @@ from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
 import wandb
+from pympler import tracker
 from .pl_dataloaders import UnlabelledDataModule
 from .proto_utils import (CAE, Decoder4L, Encoder4L,
                                                     cluster_diff_loss,
                                                     get_prototypes,
-                                                    nt_xent_loss,
                                                     prototypical_loss)
 
 
@@ -247,6 +246,10 @@ class UMAPClusteringCallback(pl.Callback):
                 wandb.log({"KMeans results": fig1}, step=trainer.global_step)
             elif self.logging_tech == "tb":
                 pass
+            del xs
+            del z
+            del data
+            del predicted_labels
 
 
 # Cell
@@ -320,6 +323,8 @@ class ProtoCLR(pl.LightningModule):
         self.log_images = log_images
         self.oracle_mode = oracle_mode
 
+        self.mem_tr = tracker.SummaryTracker()
+
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
@@ -385,7 +390,7 @@ class ProtoCLR(pl.LightningModule):
         if self.clustering_algo == 'kmeans':
             clf = cluster.KMeans(n_clusters=5)
         elif self.clustering_algo == 'hdbscan':
-            pass
+            clf = hdbscan.HDBSCAN(min_cluster_size=self.eval_ways)
         elif self.clustering_algo == 'spectral':
             clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
 
@@ -404,8 +409,8 @@ class ProtoCLR(pl.LightningModule):
                 loss = cluster_diff_loss(z_query, y_query, self.eval_ways, similarity=self.distance, temperature=tau)
             else:
                 loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
-        del mapper
-        del clf
+        if self.clustering_algo == 'hdbscan':
+            pass
 
         return loss
 
@@ -441,7 +446,7 @@ class ProtoCLR(pl.LightningModule):
         y_support = y_support.repeat(batch_size, 1, self.n_support)
         y_support = y_support.view(batch_size, -1).to(self.device)
 
-        # Extract features (first dim is batch dim)
+        # Extract features (first dim is batch dim)>
         # e.g. [1,50*(n_support+n_query),*(3,84,84)]
         x = torch.cat([x_support, x_query], 1)
         z, x_hat = self.forward(x)
@@ -452,9 +457,9 @@ class ProtoCLR(pl.LightningModule):
         if self.oracle_mode:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
-            labels = batch['labels'][0]
-            y_support = labels[: self.n_support * ways]
-            y_query = y_support.repeat_interleave(self.n_query)
+            labels = batch['labels']
+            y_support = labels[:, 0]
+            y_query = labels[:, 1:].flatten()
             loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
         else:
             loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
@@ -592,6 +597,7 @@ class ProtoCLR(pl.LightningModule):
         return loss, accuracy.item()
 
     def validation_step(self, batch, batch_idx):
+
         original_encoder_state = copy.deepcopy(self.encoder.state_dict())
         if not self.mode == "trainval":
             original_encoder_state = copy.deepcopy(self.encoder.state_dict())
@@ -615,9 +621,8 @@ class ProtoCLR(pl.LightningModule):
             with torch.no_grad():
                 loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
         self.log_dict(
-            {"val_loss": loss.detach(), "val_accuracy": accuracy}, prog_bar=True
+            {"val_loss": loss.item(), "val_accuracy": accuracy}, prog_bar=True
         )
-
         return loss.item(), accuracy
 
     def test_step(self, batch, batch_idx):

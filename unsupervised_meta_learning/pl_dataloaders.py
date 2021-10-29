@@ -199,9 +199,10 @@ class UnlabelledDataset(Dataset):
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
-        targets = targets = np.array(
+        targets = np.array(
             LabelEncoder().fit_transform([x[1] for x in classes])
         ).repeat(20)
+        targets = torch.from_numpy(targets)
         classes = [x[0] for x in classes]
         data = np.concatenate(classes)
         return data, targets
@@ -239,6 +240,8 @@ class UnlabelledDataset(Dataset):
                 assert self.n_query == 1
                 view_list.append(self.original_transform(image).unsqueeze(0))
                 targets.append(target)
+
+        targets = torch.Tensor(targets).long()
 
         return dict(data=torch.cat(view_list), labels=targets)
 

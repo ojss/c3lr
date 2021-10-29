@@ -98,8 +98,8 @@ dl = get_episode_loader(
 f = partial(get_images_labels_from_dl, dl)
 
 trainer = pl.Trainer(
-    profiler=profiler,
-    max_epochs=3,
+    profiler="advanced",
+    max_epochs=30,
     limit_train_batches=100,
     fast_dev_run=False,
     limit_val_batches=15,

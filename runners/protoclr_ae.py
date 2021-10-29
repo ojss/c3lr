@@ -10,7 +10,7 @@ import torch
 
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from pytorch_lightning.profiler import PyTorchProfiler, SimpleProfiler
+from pytorch_lightning.profiler import PyTorchProfiler, SimpleProfiler, AdvancedProfiler
 
 import wandb
 from unsupervised_meta_learning.cactus import *
@@ -27,6 +27,7 @@ from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
                                                  UMAPClusteringCallback,
                                                  WandbImageCallback,
                                                  get_train_images)
+from pympler import muppy, summary
 
 def protoclr_ae(
     dataset,
@@ -44,10 +45,10 @@ def protoclr_ae(
     eval_support_shots=1,
     eval_query_shots=15,
     n_images=None,
-    n_classes=5,
+    n_classes=4,
     logging="wandb",
     log_images=False,
-    torch_profiler=True,
+    profiler='torch',
     oracle_mode=False
 ):
 
@@ -63,6 +64,7 @@ def protoclr_ae(
         batch_size=50,
         seed=10,
         mode="trainval",
+        num_workers=0,
         eval_ways=eval_ways,
         eval_support_shots=eval_support_shots,
         eval_query_shots=eval_query_shots,
@@ -140,26 +142,28 @@ def protoclr_ae(
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
         cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
-
+    
     cbs.append(
         ModelCheckpoint(
-            dirpath=ckpt_dir + f"/{dataset}/{eval_ways}_{eval_support_shots}/",
+            dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}/{str(datetime.now())}",
             filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
             every_n_epochs=100,
         )
     )
     
-    if torch_profiler == True:
+    if 'torch' == profiler:
         profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
-    else:
+    elif 'simple' == profiler:
         profiler = SimpleProfiler()
+    elif 'advanced' == profiler:
+        profiler = AdvancedProfiler(dirpath='profiler/')
     if torch.cuda.is_available():
         gpus = -1
     else:
         gpus=None
     trainer = pl.Trainer(
         profiler=profiler,
-        max_epochs=10000,
+        max_epochs=400,
         min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,
@@ -174,6 +178,9 @@ def protoclr_ae(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         trainer.fit(model, datamodule=dm)
+        all_objects = muppy.get_objects()
+        sum1 = summary.summarize(all_objects)
+        summary.print_(sum1)
 
     trainer.test()
     wandb.finish()
