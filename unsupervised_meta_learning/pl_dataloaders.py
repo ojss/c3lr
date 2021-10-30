@@ -24,6 +24,9 @@ from torchmeta.datasets.helpers import (cifar_fs, cub, doublemnist,
                                         miniimagenet, omniglot, tieredimagenet,
                                         triplemnist)
 from torchmeta.utils.data import BatchMetaDataLoader, MetaDataLoader
+from torchmeta.datasets import Omniglot
+from torchmeta.transforms import Categorical, ClassSplitter
+from torchvision.transforms import Compose, ToTensor
 from torchvision import transforms
 
 
@@ -115,6 +118,9 @@ class UnlabelledDataset(Dataset):
         seed=10,
         no_aug_support=False,
         no_aug_query=False,
+        oracle_mode=False,
+        oracle_shots=1,
+        oracle_ways=5
     ):
         """
         Args:
@@ -136,12 +142,36 @@ class UnlabelledDataset(Dataset):
         self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
         self.no_aug_support = no_aug_support
         self.no_aug_query = no_aug_query
+        self.oracle_mode = oracle_mode
 
         # Get the data or paths
         self.dataset = dataset
-        self.data, self.targets = self._extract_data_from_hdf5(
-            dataset, datapath, split, n_classes, seed
-        )
+        if self.oracle_mode:
+            if split == 'train':
+                arg = {'meta_train': True}
+            elif split == 'val':
+                arg = {'meta_val': True}
+            self.ora_dataset = Omniglot(datapath,
+                   # Number of ways
+                   num_classes_per_task=oracle_ways,
+                   # Resize the images to 28x28 and converts them to PyTorch tensors (from Torchvision)
+                   transform=Compose([ToTensor()]),
+                   # Transform the labels to integers (e.g. ("Glagolitic/character01", "Sanskrit/character14", ...) to (0, 1, ...))
+                   target_transform=Categorical(num_classes=5),
+                   download=True,
+                   use_vinyals_split=True,
+                   **arg)
+            self.ora_dataset = ClassSplitter(self.ora_dataset, shuffle=True, num_train_per_class=oracle_shots)
+            self.ora_dataloader = BatchMetaDataLoader(
+                self.ora_dataset, batch_size=1, num_workers=0
+            )
+            self.data, self.targets = self._get_ora_data()
+            del self.ora_dataset
+            del self.ora_dataloader
+        else:
+            self.data = self._extract_data_from_hdf5(
+                dataset, datapath, split, n_classes, seed
+            )
 
         # Optionally only load a subset of images
         if n_images is not None:
@@ -169,6 +199,20 @@ class UnlabelledDataset(Dataset):
                 self.transform = get_custom_transform(self.img_size)
                 self.original_transform = identity_transform(self.img_size)
 
+    def _get_ora_data(self, batches=2500):
+        data = []
+        targets = []
+        cntr = 0
+        for b in self.ora_dataloader:
+            if cntr > batches:
+                break
+            else:
+                cntr += 1
+            d, t = b["train"]
+            data.append(d.squeeze(0))
+            targets.append(t)
+        return torch.cat(data), torch.cat(targets).flatten()
+
     def _extract_data_from_hdf5(self, dataset, datapath, split, n_classes, seed):
         datapath = os.path.join(datapath, dataset)
         targets = []
@@ -183,7 +227,7 @@ class UnlabelledDataset(Dataset):
                     for label in labels:
                         img_set, alphabet, character = label
                         classes.append(
-                            (f_data[img_set][alphabet][character][()], "/".join(label))
+                            f_data[img_set][alphabet][character][()]
                         )
         # Load mini-imageNet
         else:
@@ -199,13 +243,8 @@ class UnlabelledDataset(Dataset):
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
-        targets = np.array(
-            LabelEncoder().fit_transform([x[1] for x in classes])
-        ).repeat(20)
-        targets = torch.from_numpy(targets)
-        classes = [x[0] for x in classes]
         data = np.concatenate(classes)
-        return data, targets
+        return data
 
     def __len__(self):
         return self.data.shape[0]
@@ -217,8 +256,12 @@ class UnlabelledDataset(Dataset):
         else:
             # this is for oracle mode
             # currently only works with omniglot, make changes in _extract_data_from_hdf5 above.
-            target = self.targets[index]
-            image = Image.fromarray(self.data[index])
+            if self.oracle_mode:
+                target = self.targets[index]
+                image = self.data[index].squeeze().byte().numpy()
+                image = Image.fromarray(image)
+            else:
+                image = Image.fromarray(self.data[index])
 
         view_list = []
         targets = []
@@ -226,22 +269,22 @@ class UnlabelledDataset(Dataset):
         for _ in range(self.n_support):
             if not self.no_aug_support:
                 view_list.append(self.transform(image).unsqueeze(0))
-                targets.append(target)
+                targets.append(target) if self.oracle_mode else None
             else:
                 assert self.n_support == 1
                 view_list.append(self.original_transform(image).unsqueeze(0))
-                targets.append(target)
+                targets.append(target) if self.oracle_mode else None
 
         for _ in range(self.n_query):
             if not self.no_aug_query:
                 view_list.append(self.transform(image).unsqueeze(0))
-                targets.append(target)
+                targets.append(target) if self.oracle_mode else None
             else:
                 assert self.n_query == 1
                 view_list.append(self.original_transform(image).unsqueeze(0))
-                targets.append(target)
+                targets.append(target) if self.oracle_mode else None
 
-        targets = torch.Tensor(targets).long()
+        targets = torch.Tensor(targets).long() if self.oracle_mode else None
 
         return dict(data=torch.cat(view_list), labels=targets)
 
@@ -379,6 +422,9 @@ class UnlabelledDataModule(pl.LightningDataModule):
             n_query=self.n_query,
             no_aug_support=self.no_aug_support,
             no_aug_query=self.no_aug_query,
+            oracle_mode=self.train_oracle_mode,
+            oracle_ways=self.eval_ways,
+            oracle_shots=self.eval_support_shots
         )
         if self.merge_train_val:
             dataset_val = UnlabelledDataset(
@@ -392,30 +438,22 @@ class UnlabelledDataModule(pl.LightningDataModule):
                 n_query=self.n_query,
                 no_aug_support=self.no_aug_support,
                 no_aug_query=self.no_aug_query,
+                oracle_mode=self.train_oracle_mode,
+                oracle_ways=self.eval_ways,
+                oracle_shots=self.eval_support_shots
             )
 
             self.dataset_train = ConcatDataset([self.dataset_train, dataset_val])
 
     def train_dataloader(self):
-        if self.train_oracle_mode == True:
-            dataloader_train = get_episode_loader(
-                self.dataset,
-                self.datapath,
-                ways=self.eval_ways,
-                shots=self.eval_support_shots,
-                test_shots=self.eval_query_shots,
-                batch_size=1,
-                split='train',
-                **self.kwargs
-            )
-        else:
-            dataloader_train = DataLoader(
-                self.dataset_train,
-                batch_size=self.batch_size,
-                shuffle=True,
-                num_workers=self.num_workers,
-                pin_memory=torch.cuda.is_available(),
-            )
+
+        dataloader_train = DataLoader(
+            self.dataset_train,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=torch.cuda.is_available(),
+        )
         return dataloader_train
 
     def val_dataloader(self):

@@ -66,6 +66,7 @@ def protoclr_ae(
         eval_ways=eval_ways,
         eval_support_shots=eval_support_shots,
         eval_query_shots=eval_query_shots,
+        train_oracle_mode=oracle_mode
     )
 
     if dataset == "omniglot":
@@ -176,9 +177,6 @@ def protoclr_ae(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         trainer.fit(model, datamodule=dm)
-        all_objects = muppy.get_objects()
-        sum1 = summary.summarize(all_objects)
-        summary.print_(sum1)
 
     trainer.test()
     wandb.finish()

@@ -52,6 +52,7 @@ dm = UnlabelledDataModule(
     eval_ways=5,
     eval_support_shots=1,
     eval_query_shots=15,
+    train_oracle_mode=True
 )
 
 model = ProtoCLR(
