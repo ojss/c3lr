@@ -27,8 +27,6 @@ from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
                                                  UMAPClusteringCallback,
                                                  WandbImageCallback,
                                                  get_train_images)
-from pympler import muppy, summary
-
 def protoclr_ae(
     dataset,
     datapath,
