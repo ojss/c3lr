@@ -28,7 +28,6 @@ from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
 import wandb
-from pympler import tracker
 from .pl_dataloaders import UnlabelledDataModule
 from .proto_utils import (CAE, Decoder4L, Encoder4L,
                                                     cluster_diff_loss,
@@ -322,9 +321,6 @@ class ProtoCLR(pl.LightningModule):
 
         self.log_images = log_images
         self.oracle_mode = oracle_mode
-
-        self.mem_tr = tracker.SummaryTracker()
-
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
