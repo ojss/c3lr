@@ -52,7 +52,7 @@ dm = UnlabelledDataModule(
     eval_ways=5,
     eval_support_shots=1,
     eval_query_shots=15,
-    train_oracle_mode=True
+    train_oracle_mode=False
 )
 
 model = ProtoCLR(
@@ -69,8 +69,8 @@ model = ProtoCLR(
     ae=True,
     gamma=.001,
     log_images=True,
-    clustering_algo="kmeans",
-    oracle_mode=True
+    clustering_algo="hdbscan",
+    oracle_mode=False
 )
 
 # logger = WandbLogger(
@@ -89,7 +89,7 @@ dl = get_episode_loader(
     "omniglot",
     "./data/untarred",
     ways=5,
-    shots=5,
+    shots=1,
     test_shots=15,
     batch_size=1,
     split="val",
@@ -99,7 +99,7 @@ dl = get_episode_loader(
 f = partial(get_images_labels_from_dl, dl)
 
 trainer = pl.Trainer(
-    profiler="advanced",
+    profiler="simple",
     max_epochs=30,
     limit_train_batches=100,
     fast_dev_run=False,

@@ -284,9 +284,13 @@ class UnlabelledDataset(Dataset):
                 view_list.append(self.original_transform(image).unsqueeze(0))
                 targets.append(target) if self.oracle_mode else None
 
-        targets = torch.Tensor(targets).long() if self.oracle_mode else None
+        if not self.oracle_mode:
+            out = dict(data=torch.cat(view_list))
+        else:
+            targets = torch.Tensor(targets).long()
+            out = dict(data=torch.cat(view_list), labels=targets)
 
-        return dict(data=torch.cat(view_list), labels=targets)
+        return out
 
 
 # Cell

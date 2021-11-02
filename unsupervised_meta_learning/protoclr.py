@@ -21,6 +21,7 @@ import umap
 from pytorch_lightning.loggers import WandbLogger
 from scipy import stats
 from sklearnex import patch_sklearn
+
 patch_sklearn()
 from sklearn import cluster
 from torch.autograd import Variable
@@ -29,10 +30,15 @@ from tqdm.auto import tqdm
 
 import wandb
 from .pl_dataloaders import UnlabelledDataModule
-from .proto_utils import (CAE, Decoder4L, Encoder4L,
-                                                    cluster_diff_loss,
-                                                    get_prototypes,
-                                                    prototypical_loss)
+from .proto_utils import (
+    CAE,
+    Decoder4L,
+    Encoder4L,
+    cluster_diff_loss,
+    get_prototypes,
+    prototypical_loss,
+    clusterer,
+)
 
 
 # Cell
@@ -51,14 +57,19 @@ class Classifier(nn.Module):
         self.fc.load_state_dict(state_dict)
 
     def init_params_from_prototypes(self, z_support, n_way, n_support):
-        z_support   = z_support.contiguous()
-        z_proto     = z_support.view(n_way, n_support, -1 ).mean(1) #the shape of z is [n_data, n_dim]
+        z_support = z_support.contiguous()
+        z_proto = z_support.view(n_way, n_support, -1).mean(
+            1
+        )  # the shape of z is [n_data, n_dim]
         # Interpretation of ProtoNet as linear layer (see Snell et al. (2017))
-        self._set_params(weight=2*z_proto, bias=-torch.norm(z_proto, dim=-1)**2)
+        self._set_params(weight=2 * z_proto, bias=-torch.norm(z_proto, dim=-1) ** 2)
+
+
 
 # Cell
 def get_train_images(ds, num):
-    return torch.stack([ds[i]['data'][0] for i in range(num)], dim=0)
+    return torch.stack([ds[i]["data"][0] for i in range(num)], dim=0)
+
 
 class WandbImageCallback(pl.Callback):
     """
@@ -67,8 +78,8 @@ class WandbImageCallback(pl.Callback):
 
     def __init__(self, input_imgs, every_n_epochs=5):
         super().__init__()
-        self.input_imgs = input_imgs # Images to reconstruct during training
-        self.every_n_epochs = every_n_epochs # Only save those images every N epochs (otherwise tensorboard gets quite large)
+        self.input_imgs = input_imgs  # Images to reconstruct during training
+        self.every_n_epochs = every_n_epochs  # Only save those images every N epochs (otherwise tensorboard gets quite large)
 
     def on_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
@@ -79,20 +90,23 @@ class WandbImageCallback(pl.Callback):
                 _, reconst_imgs = pl_module(input_imgs)
                 pl_module.train()
 
-            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0,1)
-            grid = make_grid(imgs, nrow=2,)#  normalize=True, range=(-1,1))
-            trainer.logger.experiment.log({
-                "reconstructions": wandb.Image(grid, caption='Reconstructions'),
-                "global_step": trainer.global_step
-            })
+            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
+            grid = make_grid(imgs, nrow=2,)  #  normalize=True, range=(-1,1))
+            trainer.logger.experiment.log(
+                {
+                    "reconstructions": wandb.Image(grid, caption="Reconstructions"),
+                    "global_step": trainer.global_step,
+                }
+            )
             # trainer.logger.experiment.add_image("Reconstructions", grid, global_step=trainer.global_step)
+
 
 # Cell
 class TensorBoardImageCallback(pl.Callback):
     def __init__(self, input_imgs, every_n_epochs=5):
         super().__init__()
-        self.input_imgs = input_imgs # Images to reconstruct during training
-        self.every_n_epochs = every_n_epochs # Only save those images every N epochs (otherwise tensorboard gets quite large)
+        self.input_imgs = input_imgs  # Images to reconstruct during training
+        self.every_n_epochs = every_n_epochs  # Only save those images every N epochs (otherwise tensorboard gets quite large)
 
     def on_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
@@ -103,9 +117,13 @@ class TensorBoardImageCallback(pl.Callback):
                 _, reconst_imgs = pl_module(input_imgs)
                 pl_module.train()
 
-            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0,1)
-            grid = make_grid(imgs, nrow=2,)#  normalize=True, range=(-1,1))
-            trainer.logger.experiment.add_image("Reconstructions", grid, global_step=trainer.global_step)
+            imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
+            grid = make_grid(imgs, nrow=2,)  #  normalize=True, range=(-1,1))
+            trainer.logger.experiment.add_image(
+                "Reconstructions", grid, global_step=trainer.global_step
+            )
+
+
 
 # Cell
 class ConfidenceIntervalCallback(pl.Callback):
@@ -113,22 +131,40 @@ class ConfidenceIntervalCallback(pl.Callback):
         super().__init__()
         self.losses = []
         self.accuracies = []
-    def on_test_batch_end(self, trainer , pl_module , outputs, batch, batch_idx, dataloader_idx) -> None:
+
+    def on_test_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+    ) -> None:
         loss, accuracy = outputs
         self.losses.append(loss)
         self.accuracies.append(accuracy)
-    def on_test_end(self, trainer, pl_module) -> None:
-        conf_interval = stats.t.interval(0.95, len(self.accuracies)-1, loc=np.mean(self.accuracies),
-                                      scale=stats.sem(self.accuracies))
 
-        wandb.log({'Confidence Interval': conf_interval}, commit=False)
+    def on_test_end(self, trainer, pl_module) -> None:
+        conf_interval = stats.t.interval(
+            0.95,
+            len(self.accuracies) - 1,
+            loc=np.mean(self.accuracies),
+            scale=stats.sem(self.accuracies),
+        )
+
+        wandb.log({"Confidence Interval": conf_interval}, commit=False)
 
         plt.ylabel("Average Test Accuracy")
-        plt.errorbar([1], np.mean(self.accuracies), yerr=np.std(self.accuracies), fmt='o', color='black',
-             ecolor='lightgray', elinewidth=3, capsize=0)
-        wandb.log({
-            'Average Test Accuracy with std dev': wandb.Image(plt)
-        }, commit=False)
+        plt.errorbar(
+            [1],
+            np.mean(self.accuracies),
+            yerr=np.std(self.accuracies),
+            fmt="o",
+            color="black",
+            ecolor="lightgray",
+            elinewidth=3,
+            capsize=0,
+        )
+        wandb.log(
+            {"Average Test Accuracy with std dev": wandb.Image(plt)}, commit=False
+        )
+
+
 
 # Cell
 class UMAPCallback(pl.Callback):
@@ -163,13 +199,11 @@ class UMAPCallback(pl.Callback):
             )
             if self.logging_tech == "wandb":
                 wandb.log(
-                    {
-                        "UMAP clustering of embeddings": fig,
-                    },
-                    step=trainer.global_step,
+                    {"UMAP clustering of embeddings": fig,}, step=trainer.global_step,
                 )
             elif self.logging_tech == "tb":
                 pass
+
 
 # Cell
 class UMAPClusteringCallback(pl.Callback):
@@ -237,10 +271,7 @@ class UMAPClusteringCallback(pl.Callback):
             )
             if self.logging_tech == "wandb":
                 wandb.log(
-                    {
-                        "UMAP clustering of embeddings": fig0,
-                    },
-                    step=trainer.global_step,
+                    {"UMAP clustering of embeddings": fig0,}, step=trainer.global_step,
                 )
                 wandb.log({"KMeans results": fig1}, step=trainer.global_step)
             elif self.logging_tech == "tb":
@@ -275,14 +306,14 @@ class ProtoCLR(pl.LightningModule):
         τ=0.5,
         mode="trainval",
         eval_ways=5,
-        clustering_algo='spectral',
+        clustering_algo="spectral",
         sup_finetune=True,
         sup_finetune_lr=1e-3,
         sup_finetune_epochs=15,
         ft_freeze_backbone=True,
         finetune_batch_norm=False,
         log_images=True,
-        oracle_mode=False
+        oracle_mode=False,
     ):
         super().__init__()
 
@@ -292,7 +323,9 @@ class ProtoCLR(pl.LightningModule):
 
         self.ae = ae
         if self.ae == True:
-            self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim)
+            self.decoder = decoder_class(
+                num_input_channels, base_channel_size, latent_dim
+            )
         else:
             self.decoder = nn.Identity()
 
@@ -337,18 +370,15 @@ class ProtoCLR(pl.LightningModule):
         z = self.encoder(x.view(-1, *x.shape[-3:]))
         embeddings = nn.Flatten()(z)
         recons = self.decoder(z)
-        return embeddings.view(*x.shape[:-3], -1), recons.view(*x.shape) if self.ae == True else torch.tensor(-1.)
+        return (
+            embeddings.view(*x.shape[:-3], -1),
+            recons.view(*x.shape) if self.ae == True else torch.tensor(-1.0),
+        )
 
     def _get_pixelwise_reconstruction_loss(self, x, x_hat, ways):
         mse_loss = (
             F.mse_loss(x.squeeze(0), x_hat.squeeze(0), reduction="none")
-            .sum(
-                dim=[
-                    1,
-                    2,
-                    3,
-                ]
-            )
+            .sum(dim=[1, 2, 3,])
             .mean(dim=[0])
         )
         return mse_loss
@@ -371,42 +401,60 @@ class ProtoCLR(pl.LightningModule):
         )
         return loss, accuracy
 
-    def get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
+    def _get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
         tau = self.τ
-        loss = 0.
+        loss = 0.0
         emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
 
-        mapper = umap.UMAP(random_state=42, n_components=3).fit(emb_list) # (n_samples, 3)
+        mapper = umap.UMAP(random_state=42, n_components=3).fit(
+            emb_list
+        )  # (n_samples, 3)
         reduced_z = mapper.transform(emb_list)
         #
         # e.g. [50*n_support,2]
-        z_support = z[:, : ways * self.n_support, :] # TODO: make use of this in the loss somewhere?
+        z_support = z[
+            :, : ways * self.n_support, :
+        ]  # TODO: make use of this in the loss somewhere?
         # e.g. [50*n_query,2]
         z_query = z[:, ways * self.n_support :, :]
-        if self.clustering_algo == 'kmeans':
-            clf = cluster.KMeans(n_clusters=5)
-        elif self.clustering_algo == 'hdbscan':
-            clf = hdbscan.HDBSCAN(min_cluster_size=self.eval_ways)
-        elif self.clustering_algo == 'spectral':
-            clf = cluster.SpectralClustering(n_clusters=5, affinity='rbf')
+        if self.oracle_mode:
+            loss = cluster_diff_loss(
+                z_query,
+                y_query,
+                self.eval_ways,
+                similarity=self.distance,
+                temperature=tau,
+            )
+        else:
+            if self.clustering_algo == "kmeans":
+                clf, predicted_labels, _ = clusterer(reduced_z, algo="kmeans")
+                pred_query_labels = predicted_labels[ways * self.n_support :]
+                pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
+                loss = cluster_diff_loss(
+                    z_query,
+                    pred_query_labels,
+                    self.eval_ways,
+                    similarity=self.distance,
+                    temperature=tau,
+                )
+            elif self.clustering_algo == "hdbscan":
+                clf, predicted_labels, probs = clusterer(
+                    reduced_z, algo="hdbscan", hdbscan_metric="euclidean"
+                )
+                pred_query_labels = predicted_labels[ways * self.n_support :]
+                pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
+                if -1 in pred_query_labels:
+                    non_noise_indices = ~(pred_query_labels == -1)
+                    pred_query_labels = pred_query_labels.masked_select(non_noise_indices)
+                    z_query = z_query.index_select(1, non_noise_indices.nonzero().flatten())
 
-        predicted_labels = clf.fit_predict(reduced_z)
-        pred_query_labels = predicted_labels[ways * self.n_support :]
-        pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
-
-        if self.clustering_algo == 'kmeans':
-            # # technically our prototypes now
-            # centroids = clf.cluster_centers_
-            # centroids = torch.from_numpy(mapper.inverse_transform(centroids)).unsqueeze(0).to(self.device)
-
-            # loss = nt_xent_loss(centroids, z_query.to(self.device), query_labels, temperature=tau, reduction='mean')
-            # loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
-            if self.oracle_mode:
-                loss = cluster_diff_loss(z_query, y_query, self.eval_ways, similarity=self.distance, temperature=tau)
-            else:
-                loss = cluster_diff_loss(z_query, pred_query_labels, self.eval_ways, similarity=self.distance, temperature=tau)
-        if self.clustering_algo == 'hdbscan':
-            pass
+                loss = cluster_diff_loss(
+                    z_query,
+                    pred_query_labels,
+                    self.eval_ways,
+                    similarity=self.distance,
+                    temperature=tau,
+                )
 
         return loss
 
@@ -453,18 +501,16 @@ class ProtoCLR(pl.LightningModule):
         if self.oracle_mode:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
-            labels = batch['labels']
+            labels = batch["labels"]
             y_support = labels[:, 0]
             y_query = labels[:, 1:].flatten()
-            loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
+            loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
         else:
-            loss_cluster = self.get_cluster_loss(z, y_support, y_query, ways)
+            loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
 
-
-        self.log_dict({
-            'clr_loss': loss.item(),
-            'cluster_clr': loss_cluster.item()
-        }, prog_bar=True)
+        self.log_dict(
+            {"clr_loss": loss.item(), "cluster_clr": loss_cluster.item()}, prog_bar=True
+        )
 
         loss += loss_cluster
         # adding the pixelwise reconstruction loss at the end
@@ -475,9 +521,7 @@ class ProtoCLR(pl.LightningModule):
                 self._get_pixelwise_reconstruction_loss(x, x_hat, ways) * self.gamma
             )
             self.log(
-                "mse_loss",
-                mse_loss.item(),
-                prog_bar=True,
+                "mse_loss", mse_loss.item(), prog_bar=True,
             )
             loss += mse_loss
 
@@ -522,7 +566,6 @@ class ProtoCLR(pl.LightningModule):
         x_a_i = x_support_var
         encoder.eval()
 
-        # TODO: remove view add in network
         z_a_i = nn.Flatten()(encoder(x_a_i.to(device)))  # .view(*x_a_i.shape[:-3], -1)
         encoder.train()
 
