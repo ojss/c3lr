@@ -137,7 +137,7 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
         clf = cluster.KMeans(n_clusters=n_clusters)
         predicted_labels = clf.fit_predict(z)
     elif algo == 'hdbscan':
-        clf = hdbscan.HDBSCAN(algorithm='best', metric=hdbscan_metric)
+        clf = hdbscan.HDBSCAN(algorithm='best', metric=hdbscan_metric, min_cluster_size=4)
         clf.fit(z)
         predicted_labels = clf.labels_
         probs = clf.probabilities_
