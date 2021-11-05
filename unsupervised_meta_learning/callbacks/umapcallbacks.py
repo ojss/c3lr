@@ -72,7 +72,7 @@ class UMAPCallbackOnTrain(pl.Callback):
             mapper = umap.UMAP(
                 random_state=42,
                 n_components=3,
-                min_dist=0.25,
+                min_dist=0.5,
                 n_neighbors=50,
             )
             z_prime = mapper.fit_transform(z, y=y)
@@ -94,10 +94,11 @@ class UMAPCallbackOnTrain(pl.Callback):
 
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
-    def __init__(self, every_n_epochs=10, logger="wandb") -> None:
+    def __init__(self, every_n_epochs=10, logger="wandb", semi_supervised_umap=False) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
         self.logging_tech = logger
+        self.semi_supervised_umap = semi_supervised_umap
 
     def on_validation_batch_start(
         self,
@@ -117,12 +118,23 @@ class UMAPCallback(pl.Callback):
             z, _ = pl_module(x)
 
         z = z.detach().cpu().squeeze(0).numpy()
-        z_prime = umap.UMAP(
-            random_state=42,
-            n_components=3,
-            min_dist=0.1,
-            n_neighbors=50,
-        ).fit_transform(z)
+
+        if self.semi_supervised_umap:
+            # use the pseduo labels only for the support set elements
+            # TODO: then use this information to derive better prototypes - is this possible?
+            # To test the theory: one way to do it is plot the UMAPped points and log them
+            # check the separation and run clustering with HDBSCAN and pull out representative points of
+            # the clusters
+            
+            pass
+        else:
+            # running in unsupervised mode
+            z_prime = umap.UMAP(
+                random_state=42,
+                n_components=3,
+                min_dist=0.1,
+                n_neighbors=50,
+            ).fit_transform(z)
 
         if self.logging_tech == "wandb":
             fig = px.scatter_3d(

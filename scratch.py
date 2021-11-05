@@ -51,7 +51,7 @@ dm = UnlabelledDataModule(
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
-    train_oracle_mode=False
+    train_oracle_mode=True
 )
 
 model = ProtoCLR(
@@ -69,7 +69,7 @@ model = ProtoCLR(
     gamma=.001,
     log_images=True,
     clustering_algo="hdbscan",
-    oracle_mode=False
+    oracle_mode=True
 )
 
 logger = WandbLogger(
@@ -98,16 +98,16 @@ trainer = pl.Trainer(
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[
-        EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        UMAPCallback(every_n_epochs=10),
-        PCACallback(),
-        UMAPCallbackOnTrain(),
-        PCACallbackOnTrain()
+        # EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
+        # UMAPCallback(every_n_epochs=10),
+        # PCACallback(),
+        # UMAPCallbackOnTrain(),
+        # PCACallbackOnTrain()
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
     gpus=1,
-    logger=logger,
+    # logger=logger,
 )
 
 # logger.watch(model)

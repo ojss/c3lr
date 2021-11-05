@@ -35,6 +35,7 @@ from .proto_utils import (CAE, Decoder4L, Encoder4L, cluster_diff_loss,
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
+    print("Using CUML for UMAP")
 else:
     import umap
 
@@ -185,7 +186,10 @@ class ProtoCLR(pl.LightningModule):
         tau = self.τ
         loss = 0.0
         emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
-        y = torch.cat([y_support, y_query], dim=1).detach().cpu().numpy()
+        if self.oracle_mode:
+            y = torch.cat([y_support, y_query], dim=0).detach().cpu().numpy()
+        else:
+            y = torch.cat([y_support, y_query], dim=1).detach().cpu().numpy()
         reduced_z = umap.UMAP(
             random_state=42, n_components=3, min_dist=0.25, n_neighbors=50
         ).fit_transform(emb_list, y=y)  # (n_samples, 3)

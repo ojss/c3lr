@@ -7,26 +7,24 @@ from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
-
+import wandb
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from pytorch_lightning.profiler import PyTorchProfiler, SimpleProfiler, AdvancedProfiler
-
-import wandb
-from unsupervised_meta_learning.cactus import *
+from pytorch_lightning.profiler import (AdvancedProfiler, PyTorchProfiler,
+                                        SimpleProfiler)
+from unsupervised_meta_learning.callbacks.confinterval import *
+from unsupervised_meta_learning.callbacks.image_generation import *
+from unsupervised_meta_learning.callbacks.pcacallbacks import *
+from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
                                                        UnlabelledDataset,
                                                        get_episode_loader)
 from unsupervised_meta_learning.proto_utils import (Decoder, Decoder4L,
                                                     Decoder4L4Mini, Encoder,
                                                     get_images_labels_from_dl)
-from unsupervised_meta_learning.protoclr import (ConfidenceIntervalCallback,
-                                                 ProtoCLR,
-                                                 TensorBoardImageCallback,
-                                                 UMAPCallback,
-                                                 UMAPClusteringCallback,
-                                                 WandbImageCallback,
-                                                 get_train_images)
+from unsupervised_meta_learning.protoclr import ProtoCLR
+
+
 def protoclr_ae(
     dataset,
     datapath,
@@ -49,6 +47,7 @@ def protoclr_ae(
     profiler='torch',
     oracle_mode=False
 ):
+
 
     dm = UnlabelledDataModule(
         dataset,
@@ -133,7 +132,12 @@ def protoclr_ae(
                 cluster_alg=clustering_alg,
                 cluster_on_latent=cluster_on_latent,
             ),
+            UMAPCallback(),
+            UMAPCallbackOnTrain(every_n_steps=50),
+            PCACallback(),
+            PCACallbackOnTrain(every_n_steps=50),
             ConfidenceIntervalCallback(),
+            
         ]
         if ae == True:
             cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
