@@ -24,15 +24,13 @@ from unsupervised_meta_learning.proto_utils import (
     Decoder4L4Mini,
     get_images_labels_from_dl,
 )
-from unsupervised_meta_learning.protoclr import (
-    ConfidenceIntervalCallback,
-    ProtoCLR,
-    WandbImageCallback,
-    UMAPCallback,
-    UMAPClusteringCallback,
-    PCACallback,
-    get_train_images,
-)
+
+from unsupervised_meta_learning.callbacks.image_generation import *
+from unsupervised_meta_learning.callbacks.confinterval import *
+from unsupervised_meta_learning.callbacks.pcacallbacks import *
+from unsupervised_meta_learning.callbacks.umapcallbacks import *
+
+from unsupervised_meta_learning.protoclr import ProtoCLR
 
 profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
@@ -101,8 +99,10 @@ trainer = pl.Trainer(
     limit_test_batches=600,
     callbacks=[
         EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        UMAPCallback(every_n_epochs=1),
+        UMAPCallback(every_n_epochs=10),
         PCACallback(),
+        UMAPCallbackOnTrain(),
+        PCACallbackOnTrain()
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,

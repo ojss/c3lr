@@ -7,13 +7,21 @@ __all__ = ['euclidean_distance', 'cosine_similarity', 'get_num_samples', 'get_pr
 # Cell
 #export
 # adapted from the torchmeta code
+import importlib
 from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn import cluster
-import hdbscan
+
+if (cuml_details := importlib.util.find_spec("cuml")) is not None:
+    from cuml.cluster import hdbscan
+else:
+    import hdbscan
+
 from .nn_utils import conv3x3
+
 
 # Cell
 def euclidean_distance(x, y):
@@ -137,7 +145,10 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
         clf = cluster.KMeans(n_clusters=n_clusters)
         predicted_labels = clf.fit_predict(z)
     elif algo == 'hdbscan':
-        clf = hdbscan.HDBSCAN(algorithm='best', metric=hdbscan_metric, min_cluster_size=4)
+        if cuml_details is not None:
+            clf = hdbscan.HDBSCAN(metric=hdbscan_metric, min_cluster_size=4)
+        else:
+            clf = hdbscan.HDBSCAN(algorithm='best', metric=hdbscan_metric, min_cluster_size=4)
         clf.fit(z)
         predicted_labels = clf.labels_
         probs = clf.probabilities_
