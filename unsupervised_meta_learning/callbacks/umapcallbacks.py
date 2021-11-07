@@ -4,11 +4,13 @@ from typing import Any
 import plotly.express as px
 import pytorch_lightning as pl
 import torch
+import torch.functional as F
 import wandb
 from sklearn import cluster
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
+    extra_args = {"verbose": False}
 else:
     import umap
 

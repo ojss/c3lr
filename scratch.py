@@ -38,7 +38,6 @@ profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 dm = UnlabelledDataModule(
     "omniglot",
     "./data/untarred",
-    split="train",
     transform=None,
     n_support=1,
     n_query=3,
@@ -92,7 +91,7 @@ logger = WandbLogger(
 
 trainer = pl.Trainer(
     profiler="simple",
-    max_epochs=30,
+    max_epochs=1,
     limit_train_batches=100,
     fast_dev_run=False,
     limit_val_batches=15,
@@ -116,7 +115,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     trainer.fit(model, datamodule=dm)
 
-trainer.test()
+trainer.test(model=model, datamodule=dm)
 
 # from torchinfo import summary
 # import torch.nn as nn

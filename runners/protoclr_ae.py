@@ -1,8 +1,7 @@
-__all__=['protoclr_ae']
+__all__ = ["protoclr_ae"]
 
 import warnings
 from datetime import datetime
-from functools import partial
 from pathlib import Path
 
 import pytorch_lightning as pl
@@ -17,11 +16,9 @@ from unsupervised_meta_learning.callbacks.image_generation import *
 from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
-                                                       UnlabelledDataset,
-                                                       get_episode_loader)
+                                                       UnlabelledDataset)
 from unsupervised_meta_learning.proto_utils import (Decoder, Decoder4L,
-                                                    Decoder4L4Mini, Encoder,
-                                                    get_images_labels_from_dl)
+                                                    Decoder4L4Mini, Encoder)
 from unsupervised_meta_learning.protoclr import ProtoCLR
 
 
@@ -44,10 +41,9 @@ def protoclr_ae(
     n_classes=4,
     logging="wandb",
     log_images=False,
-    profiler='torch',
-    oracle_mode=False
+    profiler="torch",
+    oracle_mode=False,
 ):
-
 
     dm = UnlabelledDataModule(
         dataset,
@@ -65,7 +61,7 @@ def protoclr_ae(
         eval_ways=eval_ways,
         eval_support_shots=eval_support_shots,
         eval_query_shots=eval_query_shots,
-        train_oracle_mode=oracle_mode
+        train_oracle_mode=oracle_mode,
     )
 
     if dataset == "omniglot":
@@ -90,15 +86,11 @@ def protoclr_ae(
         ae=ae,
         clustering_algo=clustering_alg,
         log_images=log_images,
-        oracle_mode=oracle_mode
+        oracle_mode=oracle_mode,
     )
     dataset_train = UnlabelledDataset(
         dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
     )
-    dl = get_episode_loader(
-        dataset, datapath, ways=5, shots=5, test_shots=15, batch_size=1, split="val",
-    )
-    image_f = partial(get_images_labels_from_dl, dl)
 
     if logging == "wandb":
         logger = WandbLogger(
@@ -126,18 +118,11 @@ def protoclr_ae(
 
         cbs = [
             EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
-            UMAPClusteringCallback(
-                image_f,
-                every_n_epochs=1,
-                cluster_alg=clustering_alg,
-                cluster_on_latent=cluster_on_latent,
-            ),
             UMAPCallback(),
             UMAPCallbackOnTrain(every_n_steps=50),
             PCACallback(),
             PCACallbackOnTrain(every_n_steps=50),
             ConfidenceIntervalCallback(),
-            
         ]
         if ae == True:
             cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
@@ -145,28 +130,30 @@ def protoclr_ae(
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
         cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
-    
-    cbs.append(
-        ModelCheckpoint(
-            dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}/{str(datetime.now())}",
-            filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
-            every_n_epochs=100,
-        )
+
+    ckpt_callback = ModelCheckpoint(
+        monitor="val_accuracy",
+        mode="max",
+        dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}",
+        filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
+        every_n_epochs=30,
+        save_top_k=5,
     )
-    
-    if 'torch' == profiler:
+    cbs.append(ckpt_callback)
+
+    if "torch" == profiler:
         profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
-    elif 'simple' == profiler:
+    elif "simple" == profiler:
         profiler = SimpleProfiler()
-    elif 'advanced' == profiler:
-        profiler = AdvancedProfiler(dirpath='profiler/')
+    elif "advanced" == profiler:
+        profiler = AdvancedProfiler(dirpath="profiler/")
     if torch.cuda.is_available():
         gpus = -1
     else:
-        gpus=None
+        gpus = None
     trainer = pl.Trainer(
         profiler=profiler,
-        max_epochs=400,
+        max_epochs=1000,
         min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,
@@ -182,5 +169,5 @@ def protoclr_ae(
         warnings.simplefilter("ignore")
         trainer.fit(model, datamodule=dm)
 
-    trainer.test()
+    trainer.test(datamodule=dm, ckpt_dir=ckpt_callback.best_model_path)
     wandb.finish()

@@ -189,10 +189,7 @@ class ProtoCLR(pl.LightningModule):
         if self.oracle_mode:
             y = torch.cat([y_support, y_query], dim=0).detach().cpu().numpy()
         else:
-            y = torch.cat([y_support, y_query], dim=1).detach().cpu().numpy()
-        reduced_z = umap.UMAP(
-            random_state=42, n_components=3, min_dist=0.25, n_neighbors=50
-        ).fit_transform(emb_list, y=y)  # (n_samples, 3)
+            y = torch.cat([y_support, y_query], dim=1).detach().cpu().flatten().numpy()
 
         #
         # e.g. [50*n_support,2]
@@ -210,6 +207,9 @@ class ProtoCLR(pl.LightningModule):
                 temperature=tau,
             )
         else:
+            reduced_z = umap.UMAP(
+                random_state=42, n_components=3, min_dist=0.25, n_neighbors=50
+            ).fit_transform(emb_list, y=y)  # (n_samples, 3)
             if self.clustering_algo == "kmeans":
                 clf, predicted_labels, _ = clusterer(reduced_z, algo="kmeans")
                 pred_query_labels = predicted_labels[ways * self.n_support :]
