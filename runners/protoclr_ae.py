@@ -48,7 +48,6 @@ def protoclr_ae(
     dm = UnlabelledDataModule(
         dataset,
         datapath,
-        split="train",
         transform=None,
         n_support=1,
         n_query=3,
@@ -170,5 +169,5 @@ def protoclr_ae(
         warnings.simplefilter("ignore")
         trainer.fit(model, datamodule=dm)
 
-    trainer.test(datamodule=dm, ckpt_dir=ckpt_callback.best_model_path)
+    trainer.test(datamodule=dm, ckpt_path=ckpt_callback.best_model_path)
     wandb.finish()
