@@ -38,7 +38,7 @@ def protoclr_ae(
     eval_support_shots=1,
     eval_query_shots=15,
     n_images=None,
-    n_classes=4,
+    n_classes=5,
     logging="wandb",
     log_images=False,
     profiler="torch",
@@ -97,6 +97,7 @@ def protoclr_ae(
             project="ProtoCLR+AE",
             config={
                 "batch_size": 50,
+                "n_classes": n_classes,
                 "steps": 100,
                 "lr": lr,
                 "inner_lr": inner_lr,
