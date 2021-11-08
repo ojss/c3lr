@@ -38,11 +38,14 @@ def protoclr_ae(
     eval_support_shots=1,
     eval_query_shots=15,
     n_images=None,
-    n_classes=5,
+    n_classes=None,
     logging="wandb",
     log_images=False,
     profiler="torch",
     oracle_mode=False,
+    num_workers=0,
+    callbacks=True,
+    use_plotly=True
 ):
 
     dm = UnlabelledDataModule(
@@ -56,7 +59,7 @@ def protoclr_ae(
         batch_size=50,
         seed=10,
         mode="trainval",
-        num_workers=0,
+        num_workers=num_workers,
         eval_ways=eval_ways,
         eval_support_shots=eval_support_shots,
         eval_query_shots=eval_query_shots,
@@ -115,28 +118,30 @@ def protoclr_ae(
             },
         )
         logger.watch(model)
-
-        cbs = [
-            EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
-            UMAPCallback(),
-            UMAPCallbackOnTrain(every_n_steps=50),
-            PCACallback(),
-            PCACallbackOnTrain(every_n_steps=50),
-            ConfidenceIntervalCallback(),
-        ]
-        if ae == True:
-            cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
+        if callbacks:
+            cbs = [
+                EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
+                UMAPCallback(use_plotly=use_plotly),
+                UMAPCallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
+                PCACallback(use_plotly=use_plotly),
+                PCACallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
+                ConfidenceIntervalCallback(),
+            ]
+            if ae == True:
+                cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
+        else:
+            cbs = []
 
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
-        cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
+        cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))] if callbacks == True else []
 
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",
         mode="max",
         dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}",
         filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
-        every_n_epochs=30,
+        every_n_epochs=10,
         save_top_k=5,
     )
     cbs.append(ckpt_callback)
@@ -153,7 +158,7 @@ def protoclr_ae(
         gpus = None
     trainer = pl.Trainer(
         profiler=profiler,
-        max_epochs=1000,
+        max_epochs=1,
         min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,

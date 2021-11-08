@@ -46,7 +46,7 @@ dm = UnlabelledDataModule(
     batch_size=50,
     seed=10,
     mode="trainval",
-    num_workers=0,
+    num_workers=2,
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
@@ -98,7 +98,7 @@ trainer = pl.Trainer(
     limit_test_batches=600,
     callbacks=[
         # EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        # UMAPCallback(every_n_epochs=10),
+        UMAPCallback(every_n_epochs=1, use_plotly=False),
         # PCACallback(),
         # UMAPCallbackOnTrain(),
         # PCACallbackOnTrain()
@@ -106,7 +106,7 @@ trainer = pl.Trainer(
     ],
     num_sanity_val_steps=2,
     gpus=1,
-    # logger=logger,
+    logger=logger,
 )
 
 # logger.watch(model)

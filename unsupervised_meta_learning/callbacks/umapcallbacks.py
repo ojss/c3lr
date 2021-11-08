@@ -7,7 +7,8 @@ import torch
 import torch.functional as F
 import wandb
 from sklearn import cluster
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
     extra_args = {"verbose": False}
@@ -15,9 +16,11 @@ else:
     import umap
 
 class UMAPCallbackOnTrain(pl.Callback):
-    def __init__(self, every_n_steps=10) -> None:
+    def __init__(self, logging_tech='wandb', every_n_steps=10, use_plotly=True) -> None:
         super().__init__()
+        self.logging_tech = logging_tech
         self.every_n_steps = every_n_steps
+        self.plotly = use_plotly
 
     def on_train_batch_start(
         self,
@@ -73,34 +76,42 @@ class UMAPCallbackOnTrain(pl.Callback):
             z = z.detach().squeeze(0).cpu().numpy()
             mapper = umap.UMAP(
                 random_state=42,
-                n_components=3,
+                n_components=3 if self.plotly is True else 2,
                 min_dist=0.5,
                 n_neighbors=50,
             )
             z_prime = mapper.fit_transform(z, y=y)
-
-            fig = px.scatter_3d(
-                x=z_prime[:, 0],
-                y=z_prime[:, 1],
-                z=z_prime[:, 2],
-                color=y,
-                template="seaborn",
-                size_max=18,
-                color_discrete_sequence=px.colors.qualitative.Prism,
-                color_continuous_scale=px.colors.diverging.Portland,
-            )
-            wandb.log(
-                {"UMAP of train embeddings": fig,}, step=trainer.global_step,
-            )
+            if self.logging_tech == "wandb" and self.plotly:
+                fig = px.scatter_3d(
+                    x=z_prime[:, 0],
+                    y=z_prime[:, 1],
+                    z=z_prime[:, 2],
+                    color=y,
+                    template="seaborn",
+                    size_max=18,
+                    color_discrete_sequence=px.colors.qualitative.Prism,
+                    color_continuous_scale=px.colors.diverging.Portland,
+                )
+                wandb.log(
+                    {"UMAP of train embeddings": fig,}, step=trainer.global_step,
+                )
+            elif self.logging_tech == 'wandb' and not self.plotly:
+                sns.set_theme()
+                ax = sns.scatterplot(x=z_prime[:, 0], y=z_prime[:, 1], hue=y, palette="icefire", style=y, legend=False)
+                wandb.log(
+                    {"UMAP of train embeddings": wandb.Image(ax)}, step=trainer.global_step,
+                )
+                plt.clf()
 
 
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
-    def __init__(self, every_n_epochs=10, logger="wandb", semi_supervised_umap=False) -> None:
+    def __init__(self, every_n_epochs=10, logger="wandb", semi_supervised_umap=False, use_plotly=True) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
         self.logging_tech = logger
         self.semi_supervised_umap = semi_supervised_umap
+        self.plotly = use_plotly
 
     def on_validation_batch_start(
         self,
@@ -114,7 +125,7 @@ class UMAPCallback(pl.Callback):
         x_test, y_test = batch["test"]
 
         x = torch.cat([x_train, x_test], dim=1)  # [1, shots * ways, img_shape]
-        labels = torch.cat([y_train.flatten(), y_test.flatten()]).cpu()
+        labels = torch.cat([y_train.flatten(), y_test.flatten()]).cpu().numpy()
         with torch.no_grad():
             pl_module.eval()
             z, _ = pl_module(x)
@@ -133,12 +144,12 @@ class UMAPCallback(pl.Callback):
             # running in unsupervised mode
             z_prime = umap.UMAP(
                 random_state=42,
-                n_components=3,
+                n_components=3 if self.plotly is True else 2,
                 min_dist=0.1,
                 n_neighbors=50,
             ).fit_transform(z)
 
-        if self.logging_tech == "wandb":
+        if self.logging_tech == "wandb" and self.plotly:
             fig = px.scatter_3d(
                 x=z_prime[:, 0],
                 y=z_prime[:, 1],
@@ -152,6 +163,13 @@ class UMAPCallback(pl.Callback):
             wandb.log(
                 {"UMAP of val embeddings": fig,}, step=trainer.global_step,
             )
+        elif self.logging_tech == 'wandb' and not self.plotly:
+            sns.set_theme()
+            ax = sns.scatterplot(x=z_prime[:, 0], y=z_prime[:, 1], hue=labels, palette="icefire", style=labels, legend=False)
+            wandb.log(
+                {"UMAP of val embeddings": wandb.Image(ax),}, step=trainer.global_step,
+            )
+            plt.clf()
         elif self.logging_tech == "tb":
             pass
 
