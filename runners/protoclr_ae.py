@@ -159,11 +159,11 @@ def protoclr_ae(
         gpus = None
     trainer = pl.Trainer(
         profiler=profiler,
-        max_epochs=1,
+        max_epochs=10000,
         min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,
-        limit_val_batches=15,
+        limit_val_batches=50,
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
