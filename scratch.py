@@ -50,7 +50,7 @@ dm = UnlabelledDataModule(
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
-    train_oracle_mode=True
+    train_oracle_mode=False
 )
 
 model = ProtoCLR(
@@ -68,7 +68,8 @@ model = ProtoCLR(
     gamma=.001,
     log_images=True,
     clustering_algo="hdbscan",
-    oracle_mode=True
+    oracle_mode=False,
+    use_entropy=True
 )
 
 logger = WandbLogger(
@@ -76,18 +77,6 @@ logger = WandbLogger(
     config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
 )
 
-# dl = get_episode_loader(
-#     "omniglot",
-#     "./data/untarred",
-#     ways=5,
-#     shots=1,
-#     test_shots=15,
-#     batch_size=1,
-#     split="val",
-#     num_workers=0,
-# )
-
-# f = partial(get_images_labels_from_dl, dl)
 
 trainer = pl.Trainer(
     profiler="simple",
@@ -98,7 +87,7 @@ trainer = pl.Trainer(
     limit_test_batches=600,
     callbacks=[
         # EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        UMAPCallback(every_n_epochs=1, use_plotly=False),
+        # UMAPCallback(every_n_epochs=1, use_plotly=False),
         # PCACallback(),
         # UMAPCallbackOnTrain(),
         # PCACallbackOnTrain()
@@ -106,7 +95,7 @@ trainer = pl.Trainer(
     ],
     num_sanity_val_steps=2,
     gpus=1,
-    logger=logger,
+    # logger=logger,
 )
 
 # logger.watch(model)

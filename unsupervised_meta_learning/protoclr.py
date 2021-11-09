@@ -95,6 +95,7 @@ class ProtoCLR(pl.LightningModule):
         finetune_batch_norm=False,
         log_images=True,
         oracle_mode=False,
+        use_entropy=False
     ):
         super().__init__()
 
@@ -135,6 +136,7 @@ class ProtoCLR(pl.LightningModule):
 
         self.log_images = log_images
         self.oracle_mode = oracle_mode
+        self.use_entropy = use_entropy
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
@@ -243,6 +245,10 @@ class ProtoCLR(pl.LightningModule):
                     similarity=self.distance,
                     temperature=tau,
                 )
+                if self.use_entropy:
+                    ent = torch.distributions.Categorical(probs=torch.from_numpy(probs)).entropy()
+                    self.log("entropy_clstr", ent)
+                    loss += ent
 
         return loss
 

@@ -45,7 +45,8 @@ def protoclr_ae(
     oracle_mode=False,
     num_workers=0,
     callbacks=True,
-    use_plotly=True
+    use_plotly=True,
+    use_entropy=False
 ):
 
     dm = UnlabelledDataModule(
@@ -89,6 +90,7 @@ def protoclr_ae(
         clustering_algo=clustering_alg,
         log_images=log_images,
         oracle_mode=oracle_mode,
+        use_entropy=use_entropy
     )
     dataset_train = UnlabelledDataset(
         dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
