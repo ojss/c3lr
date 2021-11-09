@@ -136,10 +136,11 @@ def protoclr_ae(
         logger = TensorBoardLogger(save_dir="tb_logs")
         cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))] if callbacks == True else []
 
+    ckpt_path = ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}"
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",
         mode="max",
-        dirpath=ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}",
+        dirpath=ckpt_path,
         filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
         every_n_epochs=10,
         save_top_k=5,
@@ -166,6 +167,7 @@ def protoclr_ae(
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
+        weights_save_path=ckpt_path / "others",
         gpus=gpus,
         logger=logger,
     )
