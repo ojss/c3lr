@@ -8,7 +8,7 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
 #SBATCH --time=25:00:00
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=4
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=24000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -40,7 +40,6 @@ module load miniconda/3.9
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
-# srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
 srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
 	--gamma=0.005 \
@@ -56,4 +55,4 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--ae=False \
 	--profiler='simple'  \
 	--oracle_mode=True \
-	--n_classes=5
+	--use_plotly=False

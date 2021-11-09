@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=25:00:00
+#SBATCH --time=12:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -46,7 +46,7 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--gamma=0.005 \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
-	--eval_support_shots=5\
+	--eval_support_shots=1\
 	--log_images=True \
 	--distance='euclidean' \
 	--tau=1.0 \
@@ -56,4 +56,3 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--ae=False \
 	--profiler='simple'  \
 	--oracle_mode=True \
-	--n_classes=5

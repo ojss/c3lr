@@ -11,17 +11,17 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=25:00:00
+#SBATCH --time=20:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
 
 # Request 1 CPU per active thread of your program (assume 1 unless you specifically set this)
 # The default number of CPUs per task is 1 (note: CPUs are always allocated per 2)
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=3
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=10096
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -39,21 +39,17 @@ module load miniconda/3.9
 # For example: srun python my_program.py
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
-source activate /home/nfs/oshirekar/unsupervised_ml/ai2
+source activate /home/nfs/oshirekar/unsupervised_ml/ai
 # srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
-srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
-	--gamma=0.005 \
-	--lr=1e-3 \
-	--inner_lr=1e-3  \
-	--eval_support_shots=5\
+srun python runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+	--gamma=3e-3 \
+	--eval_support_shots=5 \
 	--log_images=True \
 	--distance='euclidean' \
 	--tau=1.0 \
-	--logging='wandb' \
-	--clustering_alg='hdbscan' \
-	--cluster_on_latent=False \
-	--ae=False \
-	--profiler='simple'  \
-	--oracle_mode=True \
-	--n_classes=5
+	--lr=3e-3 \
+	--inner_lr=1e-3 \
+        --logging='wandb' \
+        --clustering_alg='kmeans' \
+        --cluster_on_latent=True

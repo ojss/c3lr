@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -8,7 +8,7 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
 #SBATCH --time=25:00:00
@@ -43,7 +43,7 @@ source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 # srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
 srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
-	--gamma=0.005 \
+	--gamma=0.01 \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
 	--eval_support_shots=5\
@@ -53,7 +53,8 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--logging='wandb' \
 	--clustering_alg='hdbscan' \
 	--cluster_on_latent=False \
-	--ae=False \
+	--ae=True \
 	--profiler='simple'  \
-	--oracle_mode=True \
-	--n_classes=5
+	--oracle_mode=False \
+	--n_classes=5 \
+	--use_plotly=False

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -8,7 +8,7 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
 #SBATCH --time=25:00:00
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=4
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=24000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -46,7 +46,7 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--gamma=0.005 \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
-	--eval_support_shots=5\
+	--eval_support_shots=1\
 	--log_images=True \
 	--distance='euclidean' \
 	--tau=1.0 \
@@ -56,4 +56,5 @@ srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/
 	--ae=False \
 	--profiler='simple'  \
 	--oracle_mode=True \
-	--n_classes=5
+	--n_classes=5 \
+	--use_plotly=False
