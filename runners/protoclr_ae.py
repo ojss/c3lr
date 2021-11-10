@@ -4,51 +4,48 @@ import warnings
 from datetime import datetime
 from pathlib import Path
 
-import pytorch_lightning as pl
-import torch
-import wandb
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.profiler import (AdvancedProfiler, PyTorchProfiler,
                                         SimpleProfiler)
+
 from unsupervised_meta_learning.callbacks.confinterval import *
 from unsupervised_meta_learning.callbacks.image_generation import *
 from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (UnlabelledDataModule,
                                                        UnlabelledDataset)
-from unsupervised_meta_learning.proto_utils import (Decoder, Decoder4L,
-                                                    Decoder4L4Mini, Encoder)
+from unsupervised_meta_learning.proto_utils import (Decoder4L,
+                                                    Decoder4L4Mini)
 from unsupervised_meta_learning.protoclr import ProtoCLR
 
 
 def protoclr_ae(
-    dataset,
-    datapath,
-    lr=1e-3,
-    inner_lr=1e-3,
-    gamma=1.0,
-    distance="euclidean",
-    ckpt_dir=Path("./ckpts"),
-    ae=True,
-    tau=0.5,
-    eval_ways=5,
-    clustering_alg="kmeans",
-    cluster_on_latent=False,
-    eval_support_shots=1,
-    eval_query_shots=15,
-    n_images=None,
-    n_classes=None,
-    logging="wandb",
-    log_images=False,
-    profiler="torch",
-    oracle_mode=False,
-    num_workers=0,
-    callbacks=True,
-    use_plotly=True,
-    use_entropy=False
+        dataset,
+        datapath,
+        lr=1e-3,
+        inner_lr=1e-3,
+        gamma=1.0,
+        distance="euclidean",
+        ckpt_dir=Path("./ckpts"),
+        ae=True,
+        tau=0.5,
+        eval_ways=5,
+        clustering_alg="kmeans",
+        cluster_on_latent=False,
+        eval_support_shots=1,
+        eval_query_shots=15,
+        n_images=None,
+        n_classes=None,
+        logging="wandb",
+        log_images=False,
+        profiler="torch",
+        oracle_mode=False,
+        num_workers=0,
+        callbacks=True,
+        use_plotly=True,
+        use_entropy=False
 ):
-
     dm = UnlabelledDataModule(
         dataset,
         datapath,
@@ -116,6 +113,7 @@ def protoclr_ae(
                 "clustering_algo": clustering_alg,
                 "clustering_on_latent": cluster_on_latent,
                 "oracle_mode": oracle_mode,
+                "use_entropy": use_entropy,
                 "timestamp": str(datetime.now()),
             },
         )
@@ -129,14 +127,14 @@ def protoclr_ae(
                 PCACallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
                 ConfidenceIntervalCallback(),
             ]
-            if ae == True:
+            if ae:
                 cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
         else:
             cbs = []
 
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
-        cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))] if callbacks == True else []
+        cbs = [TensorBoardImageCallback(get_train_images(dataset_train, 8))] if callbacks and ae else []
 
     ckpt_path = ckpt_dir / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}"
     ckpt_callback = ModelCheckpoint(

@@ -69,7 +69,7 @@ model = ProtoCLR(
     log_images=True,
     clustering_algo="hdbscan",
     oracle_mode=False,
-    use_entropy=True
+    use_entropy=False
 )
 
 logger = WandbLogger(

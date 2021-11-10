@@ -2,13 +2,6 @@
 
 __all__ = [
     "Classifier",
-    "get_train_images",
-    "WandbImageCallback",
-    "TensorBoardImageCallback",
-    "ConfidenceIntervalCallback",
-    "UMAPCallback",
-    "UMAPClusteringCallback",
-    "PCACallback",
     "ProtoCLR",
 ]
 
@@ -16,28 +9,25 @@ __all__ = [
 # export
 import copy
 import importlib
-import warnings
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from sklearnex import patch_sklearn
 
-patch_sklearn()
 from torch.autograd import Variable
 from tqdm.auto import tqdm
-
-from .pl_dataloaders import UnlabelledDataModule
-from .proto_utils import (CAE, Decoder4L, Encoder4L, cluster_diff_loss,
+from .proto_utils import (Decoder4L, Encoder4L, cluster_diff_loss,
                           clusterer, get_prototypes, prototypical_loss)
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
+
     print("Using CUML for UMAP")
 else:
     import umap
+
 
 # Cell
 class Classifier(nn.Module):
@@ -66,36 +56,36 @@ class Classifier(nn.Module):
 # Cell
 class ProtoCLR(pl.LightningModule):
     def __init__(
-        self,
-        n_support,
-        n_query,
-        batch_size,
-        lr_decay_step,
-        lr_decay_rate,
-        dataset="omniglot",
-        num_input_channels=1,
-        base_channel_size=64,
-        latent_dim=64,
-        encoder_class=Encoder4L,
-        decoder_class=Decoder4L,
-        classifier=None,
-        gamma=5.0,
-        lr=1e-3,
-        inner_lr=1e-3,
-        ae=False,
-        distance="euclidean",
-        τ=0.5,
-        mode="trainval",
-        eval_ways=5,
-        clustering_algo="spectral",
-        sup_finetune=True,
-        sup_finetune_lr=1e-3,
-        sup_finetune_epochs=15,
-        ft_freeze_backbone=True,
-        finetune_batch_norm=False,
-        log_images=True,
-        oracle_mode=False,
-        use_entropy=False
+            self,
+            n_support,
+            n_query,
+            batch_size,
+            lr_decay_step,
+            lr_decay_rate,
+            dataset="omniglot",
+            num_input_channels=1,
+            base_channel_size=64,
+            latent_dim=64,
+            encoder_class=Encoder4L,
+            decoder_class=Decoder4L,
+            classifier=None,
+            gamma=5.0,
+            lr=1e-3,
+            inner_lr=1e-3,
+            ae=False,
+            distance="euclidean",
+            τ=0.5,
+            mode="trainval",
+            eval_ways=5,
+            clustering_algo="spectral",
+            sup_finetune=True,
+            sup_finetune_lr=1e-3,
+            sup_finetune_epochs=15,
+            ft_freeze_backbone=True,
+            finetune_batch_norm=False,
+            log_images=True,
+            oracle_mode=False,
+            use_entropy=False,
     ):
         super().__init__()
 
@@ -160,9 +150,13 @@ class ProtoCLR(pl.LightningModule):
 
     def _get_pixelwise_reconstruction_loss(self, x, x_hat, ways):
         mse_loss = (
-            F.mse_loss(x.squeeze(0), x_hat.squeeze(0), reduction="none")
-            .sum(dim=[1, 2, 3,])
-            .mean(dim=[0])
+            F.mse_loss(x.squeeze(0), x_hat.squeeze(0), reduction="none").sum(
+                dim=[
+                    1,
+                    2,
+                    3,
+                ]
+            ).mean(dim=[0])
         )
         return mse_loss
 
@@ -172,7 +166,7 @@ class ProtoCLR(pl.LightningModule):
         # e.g. [1,50*n_support,*(3,84,84)]
         z_support = z[:, : ways * self.n_support]
         # e.g. [1,50*n_query,*(3,84,84)]
-        z_query = z[:, ways * self.n_support :]
+        z_query = z[:, ways * self.n_support:]
         # Get prototypes
         if self.n_support == 1:
             z_proto = z_support  # in 1-shot the prototypes are the support samples
@@ -196,10 +190,10 @@ class ProtoCLR(pl.LightningModule):
         #
         # e.g. [50*n_support,2]
         z_support = z[
-            :, : ways * self.n_support, :
-        ]  # TODO: make use of this in the loss somewhere?
+                    :, : ways * self.n_support, :
+                    ]  # TODO: make use of this in the loss somewhere?
         # e.g. [50*n_query,2]
-        z_query = z[:, ways * self.n_support :, :]
+        z_query = z[:, ways * self.n_support:, :]
         if self.oracle_mode:
             loss = cluster_diff_loss(
                 z_query,
@@ -211,10 +205,12 @@ class ProtoCLR(pl.LightningModule):
         else:
             reduced_z = umap.UMAP(
                 random_state=42, n_components=3, min_dist=0.25, n_neighbors=50
-            ).fit_transform(emb_list, y=y)  # (n_samples, 3)
+            ).fit_transform(
+                emb_list, y=y
+            )  # (n_samples, 3)
             if self.clustering_algo == "kmeans":
                 clf, predicted_labels, _ = clusterer(reduced_z, algo="kmeans")
-                pred_query_labels = predicted_labels[ways * self.n_support :]
+                pred_query_labels = predicted_labels[ways * self.n_support:]
                 pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
                 loss = cluster_diff_loss(
                     z_query,
@@ -227,7 +223,7 @@ class ProtoCLR(pl.LightningModule):
                 clf, predicted_labels, probs = clusterer(
                     reduced_z, algo="hdbscan", hdbscan_metric="euclidean"
                 )
-                pred_query_labels = predicted_labels[ways * self.n_support :]
+                pred_query_labels = predicted_labels[ways * self.n_support:]
                 pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
                 if -1 in pred_query_labels:
                     non_noise_indices = ~(pred_query_labels == -1)
@@ -246,7 +242,9 @@ class ProtoCLR(pl.LightningModule):
                     temperature=tau,
                 )
                 if self.use_entropy:
-                    ent = torch.distributions.Categorical(probs=torch.from_numpy(probs)).entropy()
+                    ent = torch.distributions.Categorical(
+                        probs=torch.from_numpy(probs)
+                    ).entropy()
                     self.log("entropy_clstr", ent)
                     loss += ent
 
@@ -269,7 +267,7 @@ class ProtoCLR(pl.LightningModule):
         x_support = x_support.reshape(
             (batch_size, ways * self.n_support, *x_support.shape[-3:])
         )
-        x_query = data[:, :, self.n_support :]
+        x_query = data[:, :, self.n_support:]
         # e.g. [1,50*n_query,*(3,84,84)]
         x_query = x_query.reshape(
             (batch_size, ways * self.n_query, *x_query.shape[-3:])
@@ -292,30 +290,34 @@ class ProtoCLR(pl.LightningModule):
         opt.zero_grad()
 
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
-        if self.oracle_mode:
+        self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
+
+        if self.oracle_mode and self.clustering_algo is not None:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
             labels = batch["labels"]
             y_support = labels[:, 0]
             y_query = labels[:, 1:].flatten()
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
-        else:
+            self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
+            loss += loss_cluster
+
+        elif self.clustering_algo is not None:
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
+            self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
+            loss += loss_cluster
 
-        self.log_dict(
-            {"clr_loss": loss.item(), "cluster_clr": loss_cluster.item()}, prog_bar=True
-        )
-
-        loss += loss_cluster
         # adding the pixelwise reconstruction loss at the end
         # it has been broadcasted such that each support source image is broadcasted thrice over the three
         # query set images - which are the augmentations of the support image
         if self.ae:
             mse_loss = (
-                self._get_pixelwise_reconstruction_loss(x, x_hat, ways) * self.gamma
+                    self._get_pixelwise_reconstruction_loss(x, x_hat, ways) * self.gamma
             )
             self.log(
-                "mse_loss", mse_loss.item(), prog_bar=True,
+                "mse_loss",
+                mse_loss.item(),
+                prog_bar=True,
             )
             loss += mse_loss
 
@@ -329,16 +331,16 @@ class ProtoCLR(pl.LightningModule):
 
     @torch.enable_grad()
     def supervised_finetuning(
-        self,
-        encoder,
-        episode,
-        device="cpu",
-        proto_init=True,
-        freeze_backbone=False,
-        finetune_batch_norm=False,
-        inner_lr=0.001,
-        total_epoch=15,
-        n_way=5,
+            self,
+            encoder,
+            episode,
+            device="cpu",
+            proto_init=True,
+            freeze_backbone=False,
+            finetune_batch_norm=False,
+            inner_lr=0.001,
+            total_epoch=15,
+            n_way=5,
     ):
         x_support = episode["train"][0][0]  # only take data & only first batch
         x_support = x_support.to(device)
@@ -399,7 +401,7 @@ class ProtoCLR(pl.LightningModule):
 
                 #####################################
                 selected_id = torch.from_numpy(
-                    rand_id[j : min(j + batch_size, support_size)]
+                    rand_id[j: min(j + batch_size, support_size)]
                 ).to(device)
 
                 z_batch = x_a_i[selected_id]

@@ -190,6 +190,17 @@ def cluster_diff_loss(
     return loss / ways
 
 
+class HLoss(nn.Module):
+    def __init__(self, dim=0) -> None:
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, x):
+        b = F.softmax(x, dim=self.dim) * F.log_softmax(x, dim=self.dim)
+        b = -1.0 * b.sum()
+        return b
+
+
 # Cell
 class CNN_4Layer(nn.Module):
     def __init__(self, in_channels, out_channels=64, hidden_size=64):
