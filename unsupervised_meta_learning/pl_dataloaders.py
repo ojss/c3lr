@@ -246,7 +246,7 @@ class UnlabelledDataset(Dataset):
             d, t = b["train"]
             data.append(d.squeeze(0))
             targets.append(t)
-        return torch.cat(data), torch.cat(targets).flatten()
+        return np.concatenate(data), np.concatenate(targets).flatten()
 
     def _extract_data_from_hdf5(self, dataset, datapath, split, n_classes, seed):
         datapath = os.path.join(datapath, dataset)
@@ -291,7 +291,7 @@ class UnlabelledDataset(Dataset):
             # currently only works with omniglot, make changes in _extract_data_from_hdf5 above.
             if self.oracle_mode:
                 target = self.targets[index]
-                image = self.data[index].squeeze().byte().numpy()
+                image = self.data[index].squeeze()
                 image = Image.fromarray(image)
             else:
                 image = Image.fromarray(self.data[index])

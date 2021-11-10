@@ -9,7 +9,7 @@ __all__ = ['euclidean_distance', 'cosine_similarity', 'get_num_samples', 'get_pr
 # adapted from the torchmeta code
 import importlib
 from functools import partial
-
+from performer_pytorch import SelfAttention
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -350,6 +350,50 @@ class Encoder4L(nn.Module):
 
     def forward(self, inputs):
         return self.encoder(inputs)
+
+class AttnEncoder4L(nn.Module):
+    def __init__(self, in_channels=1, hidden_size=64, out_channels=64) -> None:
+        super().__init__()
+
+        self.qkv_proj = nn.Linear(64, 3 * 64)
+        self.o_proj = nn.Linear(64, 64)
+        self.self_attn = nn.MultiheadAttention(64, 4)
+
+        self.encoder = nn.Sequential(
+            # nn.ZeroPad2d(conv_padding),
+            nn.Conv2d(in_channels, hidden_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 14 x 14
+
+            # nn.ZeroPad2d(conv_padding),
+            nn.Conv2d(hidden_size, hidden_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 7x7
+
+            # nn.ZeroPad2d(conv_padding),
+            nn.Conv2d(hidden_size, hidden_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 3x3
+
+            # nn.ZeroPad2d(conv_padding),
+            nn.Conv2d(hidden_size, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.GELU(),
+            nn.Flatten(),
+            nn.Linear(in_features=576, out_features=256),
+            nn.GELU(),
+            nn.Linear(in_features=256, out_features=64),
+            nn.GELU()
+        )
+    def forward(self, x):
+        o = self.encoder(x)
+        qkv = self.qkv_proj(o)
+        q, k, v = qkv.chunk(3, dim=-1)
+        attn_output, attn_output_weights = self.self_attn(q.unsqueeze(0), k.unsqueeze(0), v.unsqueeze(0))
+        return attn_output.squeeze(0)
 
 
 class Decoder4L(nn.Module):

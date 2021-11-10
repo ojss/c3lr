@@ -22,7 +22,7 @@ from unsupervised_meta_learning.proto_utils import (
     Decoder,
     Encoder4L,
     Decoder4L4Mini,
-    get_images_labels_from_dl,
+    AttnEncoder4L,
 )
 
 from unsupervised_meta_learning.callbacks.image_generation import *
@@ -61,13 +61,13 @@ model = ProtoCLR(
     τ=0.5,
     num_input_channels=1,
     decoder_class=Decoder4L,
-    encoder_class=Encoder4L,
+    encoder_class=AttnEncoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     ae=True,
     gamma=.001,
     log_images=True,
-    clustering_algo="hdbscan",
+    clustering_algo=None,
     oracle_mode=False,
     use_entropy=False
 )

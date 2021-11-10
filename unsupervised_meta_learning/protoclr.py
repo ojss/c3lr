@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 from tqdm.auto import tqdm
-from .proto_utils import (Decoder4L, Encoder4L, cluster_diff_loss,
+from .proto_utils import (AttnEncoder4L, Decoder4L, Encoder4L, cluster_diff_loss,
                           clusterer, get_prototypes, prototypical_loss)
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
@@ -142,7 +142,11 @@ class ProtoCLR(pl.LightningModule):
     def forward(self, x):
         z = self.encoder(x.view(-1, *x.shape[-3:]))
         embeddings = nn.Flatten()(z)
-        recons = self.decoder(z)
+        if isinstance(self.encoder, AttnEncoder4L):
+            z = z.unsqueeze(-1).unsqueeze(-1)
+            recons = self.decoder(z)
+        else:
+            recons = self.decoder(z)
         return (
             embeddings.view(*x.shape[:-3], -1),
             recons.view(*x.shape) if self.ae == True else torch.tensor(-1.0),
