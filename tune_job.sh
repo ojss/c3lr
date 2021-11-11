@@ -20,7 +20,7 @@ module use /opt/insy/modulefiles
 module load cuda/11.1 cudnn/11.1-8.0.5.39
 module load miniconda/3.9
 
-source activate
+source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 # ===== DO NOT CHANGE THINGS HERE UNLESS YOU KNOW WHAT YOU ARE DOING =====
 # This script is a modification to the implementation suggest by gregSchwartz18 here:
