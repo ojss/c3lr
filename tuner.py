@@ -1,9 +1,5 @@
 import sys
 import os
-os.environ["SLURM_JOB_NAME"] = "bash"
-del os.environ["SLURM_NTASKS"]
-del os.environ["SLURM_JOB_NAME"]
-
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 import ray
@@ -65,7 +61,6 @@ def train_protoclr_ae(
             # PCACallbackOnTrain()
             # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
         ],
-        num_sanity_val_steps=2,
         gpus=num_gpus,
         logger=TensorBoardLogger(save_dir=tune.get_trial_dir(), name="", version="."),
         progress_bar_refresh_rate=0,
@@ -94,10 +89,6 @@ config = {
     "use_entropy": False
 }
 
-os.environ["SLURM_JOB_NAME"] = "bash"
-del os.environ["SLURM_NTASKS"]
-del os.environ["SLURM_JOB_NAME"]
-
 ray.init(address=os.environ["ip_head"])
 
 print("Nodes in the Ray cluster:")
@@ -112,9 +103,6 @@ cpus_per_task = sys.argv[1]
 scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
 
 reporter = CLIReporter(metric_columns=["val_loss", "val_acc", "training_iteration"])
-os.environ["SLURM_JOB_NAME"] = "bash"
-del os.environ["SLURM_NTASKS"]
-del os.environ["SLURM_JOB_NAME"]
 
 analysis = tune.run(
     tune.with_parameters(
