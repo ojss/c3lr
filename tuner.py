@@ -20,7 +20,12 @@ from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataModule
 
 
 def train_protoclr_ae(
-    config, num_epochs=5000, num_gpus=0, dataset="omniglot", data_dir=None
+    config,
+    checkpoint_dir=None,
+    num_epochs=5000,
+    num_gpus=0,
+    dataset="omniglot",
+    data_dir=None,
 ):
     try:
         os.environ["SLURM_JOB_NAME"] = "bash"
@@ -36,8 +41,8 @@ def train_protoclr_ae(
         dataset,
         data_dir,
         transform=None,
-        n_support=1,
-        n_query=3,
+        n_support=config['n_support'],
+        n_query=config['n_query'],
         n_images=None,
         n_classes=None,
         batch_size=50,
@@ -51,25 +56,30 @@ def train_protoclr_ae(
     )
 
     metrics = {"val_loss": "val_loss", "val_acc": "val_accuracy"}
-    callbacks = [
-        TuneReportCheckpointCallback(
-            metrics, on="validation_end", filename="tuner_ckpt"
-        )
-    ]
 
-    trainer = pl.Trainer(
-        profiler="simple",
-        max_epochs=num_epochs,
-        limit_train_batches=100,
-        fast_dev_run=False,
-        limit_val_batches=50,
-        limit_test_batches=600,
-        callbacks=[callbacks],
-        gpus=num_gpus,
-        logger=TensorBoardLogger(save_dir=tune.get_trial_dir(), name="", version="."),
-        progress_bar_refresh_rate=0,
-        resume_from_checkpoint=os.path.join(ckpt_dir, "tuner_ckpt"),
-    )
+    kwargs = {
+        "max_epochs": num_epochs,
+        # If fractional GPUs passed in, convert to int.
+        "gpus": num_gpus,
+        "logger": TensorBoardLogger(
+            save_dir=tune.get_trial_dir(), name="", version="."
+        ),
+        "progress_bar_refresh_rate": 0,
+        "callbacks": [
+            TuneReportCheckpointCallback(
+                metrics, on="validation_end", filename="tuner_ckpt"
+            )
+        ],
+        "limit_train_batches": 100,
+        "fast_dev_run": False,
+        "limit_val_batches": 50,
+        "limit_test_batches": 600,
+    }
+
+    if checkpoint_dir:
+        kwargs["resume_from_checkpoint"] = os.path.join(checkpoint_dir, "tuner_ckpt")
+
+    trainer = pl.Trainer(**kwargs)
 
     trainer.fit(model, datamodule=dm)
 
@@ -141,6 +151,7 @@ analysis = tune.run(
             project="ProtoCLR+AE",
             api_key="f586c47014afd7c57efe3f28e80e1597b57dddd1",
             log_config=True,
+            group="tuning"
         )
     ],
 )
