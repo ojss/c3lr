@@ -1,5 +1,9 @@
 import sys
 import os
+os.environ["SLURM_JOB_NAME"] = "bash"
+del os.environ["SLURM_NTASKS"]
+del os.environ["SLURM_JOB_NAME"]
+
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 import ray
@@ -20,6 +24,10 @@ from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataModule
 def train_protoclr_ae(
     config, num_epochs=5000, num_gpus=0, dataset="omniglot", data_dir=None
 ):
+    os.environ["SLURM_JOB_NAME"] = "bash"
+    del os.environ["SLURM_NTASKS"]
+    del os.environ["SLURM_JOB_NAME"]
+
     model = ProtoCLR(**config)
 
     dm = UnlabelledDataModule(
@@ -83,9 +91,12 @@ config = {
     "gamma": tune.loguniform(1e-4, 1e-2),
     "clustering_algo": None,
     "oracle_mode": False,
-    "use_entropy": False,
+    "use_entropy": False
 }
 
+os.environ["SLURM_JOB_NAME"] = "bash"
+del os.environ["SLURM_NTASKS"]
+del os.environ["SLURM_JOB_NAME"]
 
 ray.init(address=os.environ["ip_head"])
 
@@ -101,6 +112,9 @@ cpus_per_task = sys.argv[1]
 scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
 
 reporter = CLIReporter(metric_columns=["val_loss", "val_acc", "training_iteration"])
+os.environ["SLURM_JOB_NAME"] = "bash"
+del os.environ["SLURM_NTASKS"]
+del os.environ["SLURM_JOB_NAME"]
 
 analysis = tune.run(
     tune.with_parameters(
@@ -114,7 +128,7 @@ analysis = tune.run(
     metric="val_acc",
     mode="max",
     config=config,
-    num_samples=10,
+    num_samples=33,
     scheduler=scheduler,
     progress_reporter=reporter,
     name="tune_omni_asha",
