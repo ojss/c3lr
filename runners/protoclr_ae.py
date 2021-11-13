@@ -29,10 +29,10 @@ def protoclr_ae(
     gamma=1.0,
     distance="euclidean",
     ckpt_dir=Path("./ckpts"),
-    ae=True,
-    tau=0.5,
+    ae=False,
+    tau=1.,
     eval_ways=5,
-    clustering_alg="kmeans",
+    clustering_alg=None,
     cluster_on_latent=False,
     eval_support_shots=1,
     eval_query_shots=15,
@@ -46,6 +46,7 @@ def protoclr_ae(
     oracle_mode=False,
     num_workers=0,
     callbacks=True,
+    estop=True,
     use_plotly=True,
     use_entropy=False,
     tuner_mode=False,
@@ -105,6 +106,8 @@ def protoclr_ae(
         dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
     )
 
+    cbs = []
+
     if logging == "wandb":
         logger = WandbLogger(
             project="ProtoCLR+AE",
@@ -139,12 +142,13 @@ def protoclr_ae(
                 UMAPCallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
                 PCACallback(use_plotly=use_plotly),
                 PCACallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
-                ConfidenceIntervalCallback(),
             ]
             if ae:
                 cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
-        else:
-            cbs = []
+        elif estop:
+            cbs = [EarlyStopping(monitor="val_accuracy", patience=200, min_delta=0.02)]
+        # should be there no matter what?
+        cbs.append(ConfidenceIntervalCallback())
 
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
@@ -181,10 +185,9 @@ def protoclr_ae(
     trainer = pl.Trainer(
         profiler=profiler,
         max_epochs=10000,
-        min_epochs=500,
         limit_train_batches=100,
         fast_dev_run=False,
-        limit_val_batches=50,
+        limit_val_batches=15,
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
