@@ -95,7 +95,7 @@ def get_prototypes(self, emb, targets, num_classes):
 
 # Cell
 def prototypical_loss(prototypes, embeddings, targets,
-                      distance='euclidean', τ=.5, **kwargs):
+                      distance='euclidean', tau=.5, **kwargs):
     """Compute the loss (i.e. negative log-likelihood) for the prototypical
     network, on the test/query points.
 

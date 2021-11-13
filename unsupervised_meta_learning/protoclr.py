@@ -74,7 +74,7 @@ class ProtoCLR(pl.LightningModule):
             inner_lr=1e-3,
             ae=False,
             distance="euclidean",
-            τ=0.5,
+            tau=0.5,
             mode="trainval",
             eval_ways=5,
             clustering_algo="spectral",
@@ -106,7 +106,7 @@ class ProtoCLR(pl.LightningModule):
         self.n_query = n_query
 
         self.distance = distance
-        self.τ = τ
+        self.tau = tau
 
         # gamma will be used to weight the values of the MSE loss to potentially bring it up to par
         # gamma can also be adaptive in the future
@@ -178,12 +178,12 @@ class ProtoCLR(pl.LightningModule):
             z_proto = get_prototypes(z_support, y_support, ways)
 
         loss, accuracy = prototypical_loss(
-            z_proto, z_query, y_query, distance=self.distance, τ=self.τ
+            z_proto, z_query, y_query, distance=self.distance, tau=self.tau
         )
         return loss, accuracy
 
     def _get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
-        tau = self.τ
+        tau = self.tau
         loss = 0.0
         emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
         if self.oracle_mode:

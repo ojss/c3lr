@@ -89,7 +89,7 @@ config = {
     "n_query": tune.choice([3, 4, 8]),
     "batch_size": 50,
     "distance": "euclidean",
-    "τ": 1.0,
+    "tau": 1.0,
     "num_input_channels": 1,
     "decoder_class": Decoder4L,
     "encoder_class": Encoder4L,
@@ -121,7 +121,7 @@ scheduler = PopulationBasedTraining(
     perturbation_interval=50,
     hyperparam_mutations={
         "gamma": tune.loguniform(1e-4, 1e-2),
-        "τ": tune.loguniform(0.5, 1.0),
+        "tau": tune.loguniform(0.5, 1.0),
         "lr": tune.loguniform(1e-4, 1e-2),
         "inner_lr": tune.loguniform(1e-4, 1e-2),
         "lr_decay_rate": tune.loguniform(1e-2, 5e-1),

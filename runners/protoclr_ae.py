@@ -90,7 +90,7 @@ def protoclr_ae(
         decoder_class=decoder_class,
         num_input_channels=num_input_channels,
         distance=distance,
-        τ=tau,
+        tau=tau,
         ae=ae,
         clustering_algo=clustering_alg,
         log_images=log_images,

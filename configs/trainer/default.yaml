@@ -1,0 +1,20 @@
+_target_: pytorch_lightning.Trainer
+
+gpus: 1
+
+
+progress_bar_refresh_rate: 5
+resume_from_checkpoint: null
+weights_summary: "full"
+
+# number of validation steps to execute at the beginning of the training
+num_sanity_val_steps: 0
+
+
+min_epochs: 1
+max_epochs: 500
+# If fractional GPUs passed in, convert to int.
+limit_train_batches: 100
+fast_dev_run: False
+limit_val_batches: 50
+limit_test_batches: 600
