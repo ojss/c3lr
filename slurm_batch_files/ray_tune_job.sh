@@ -78,4 +78,4 @@ done
 # ray/doc/source/cluster/examples/simple-trainer.py
 
 # ===== Call your code below =====
-python -u tuner.py "$SLURM_CPUS_PER_TASK"
+python -u ../tuner.py "$SLURM_CPUS_PER_TASK"

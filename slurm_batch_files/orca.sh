@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=25:00:00
+#SBATCH --time=15:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=4
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=20000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -42,18 +42,16 @@ module load miniconda/3.9
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 # srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
-srun python runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
-	--gamma=0.005 \
+srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
+	--eval-ways=5 \
 	--eval_support_shots=5\
-	--log_images=True \
 	--distance='euclidean' \
 	--tau=1.0 \
 	--logging='wandb' \
-	--clustering_alg='hdbscan' \
+	--clustering_alg='None' \
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
-	--oracle_mode=True \
-	--n_classes=5
+	--oracle_mode=False \
