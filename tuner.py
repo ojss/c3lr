@@ -100,7 +100,7 @@ config = {
     "ae": tune.choice([True, False]),
     "gamma": 1e-3,
     "clustering_algo": None,
-    "oracle_mode": False,
+    "oracle_mode": True,
     "use_entropy": False,
 }
 
@@ -154,6 +154,7 @@ analysis = tune.run(
             group="tuning"
         )
     ],
+    local_dir='~/unsupervised_ml/tmp/ray_results'
 )
 
 print("Best hyperparameters found were: ", analysis.best_config)

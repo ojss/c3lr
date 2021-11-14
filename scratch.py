@@ -80,7 +80,7 @@ logger = WandbLogger(
 
 trainer = pl.Trainer(
     profiler="simple",
-    max_epochs=1,
+    max_epochs=2,
     limit_train_batches=100,
     fast_dev_run=False,
     limit_val_batches=15,
