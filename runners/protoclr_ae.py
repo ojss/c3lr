@@ -191,7 +191,7 @@ def protoclr_ae(
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
-        weights_save_path=ckpt_path / "others",
+        # weights_save_path=ckpt_path / "others",
         gpus=gpus,
         logger=logger,
     )

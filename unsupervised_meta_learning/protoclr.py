@@ -300,8 +300,8 @@ class ProtoCLR(pl.LightningModule):
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
             labels = batch["labels"]
-            y_support = labels[:, 0]
-            y_query = labels[:, 1:].flatten()
+            y_support = labels[:, 0].cpu()
+            y_query = labels[:, 1:].flatten().cpu()
             lb_enc = LabelEncoder()
             lb_enc.fit(y_support)
             y_support = torch.Tensor(lb_enc.transform(y_support)).type_as(labels)
