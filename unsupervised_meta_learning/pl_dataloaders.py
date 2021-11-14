@@ -41,6 +41,7 @@ from torchmeta.utils.data import BatchMetaDataLoader, MetaDataLoader
 from torchvision import transforms
 from torchvision.transforms import Compose, ToTensor
 
+
 # Cell
 
 
@@ -61,16 +62,16 @@ def collate_task_batch(batch):
 
 # Cell
 def get_episode_loader(
-    dataset,
-    datapath,
-    ways,
-    shots,
-    test_shots,
-    batch_size,
-    split,
-    download=True,
-    shuffle=True,
-    num_workers=0,
+        dataset,
+        datapath,
+        ways,
+        shots,
+        test_shots,
+        batch_size,
+        split,
+        download=True,
+        shuffle=True,
+        num_workers=0,
 ):
     """Create an episode data loader for a torchmeta dataset. Can also
     include unlabelled data for semi-supervised learning.
@@ -137,21 +138,21 @@ def get_episode_loader(
 # Cell
 class UnlabelledDataset(Dataset):
     def __init__(
-        self,
-        dataset,
-        datapath,
-        split,
-        transform=None,
-        n_support=1,
-        n_query=1,
-        n_images=None,
-        n_classes=None,
-        seed=10,
-        no_aug_support=False,
-        no_aug_query=False,
-        oracle_mode=False,
-        oracle_shots=1,
-        oracle_ways=5,
+            self,
+            dataset,
+            datapath,
+            split,
+            transform=None,
+            n_support=1,
+            n_query=1,
+            n_images=None,
+            n_classes=None,
+            seed=10,
+            no_aug_support=False,
+            no_aug_query=False,
+            oracle_mode=False,
+            oracle_shots=1,
+            oracle_ways=5,
     ):
         """
         Args:
@@ -177,36 +178,37 @@ class UnlabelledDataset(Dataset):
 
         # Get the data or paths
         self.dataset = dataset
-        if self.oracle_mode:
-            if split == "train":
-                arg = {"meta_train": True}
-            elif split == "val":
-                arg = {"meta_val": True}
-            self.ora_dataset = Omniglot(
-                datapath,
-                # Number of ways
-                num_classes_per_task=oracle_ways,
-                # Resize the images to 28x28 and converts them to PyTorch tensors (from Torchvision)
-                transform=Compose([ToTensor()]),
-                # Transform the labels to integers (e.g. ("Glagolitic/character01", "Sanskrit/character14", ...) to (0, 1, ...))
-                target_transform=Categorical(num_classes=5),
-                download=True,
-                use_vinyals_split=True,
-                **arg
-            )
-            self.ora_dataset = ClassSplitter(
-                self.ora_dataset, shuffle=True, num_train_per_class=oracle_shots
-            )
-            self.ora_dataloader = BatchMetaDataLoader(
-                self.ora_dataset, batch_size=1, num_workers=0
-            )
-            self.data, self.targets = self._get_ora_data()
-            del self.ora_dataset
-            del self.ora_dataloader
-        else:
-            self.data = self._extract_data_from_hdf5(
-                dataset, datapath, split, n_classes, seed
-            )
+        # if self.oracle_mode:
+            # if split == "train":
+            #     arg = {"meta_train": True}
+            # elif split == "val":
+            #     arg = {"meta_val": True}
+            # self.ora_dataset = Omniglot(
+            #     datapath,
+            #     # Number of ways
+            #     num_classes_per_task=oracle_ways,
+            #     # Resize the images to 28x28 and converts them to PyTorch tensors (from Torchvision)
+            #     transform=Compose([ToTensor()]),
+            #     # Transform the labels to integers (e.g. ("Glagolitic/character01", "Sanskrit/character14", ...) to (0, 1, ...))
+            #     target_transform=Categorical(num_classes=5),
+            #     download=True,
+            #     use_vinyals_split=True,
+            #     **arg
+            # )
+            # self.ora_dataset = ClassSplitter(
+            #     self.ora_dataset, shuffle=True, num_train_per_class=oracle_shots
+            # )
+            # self.ora_dataloader = BatchMetaDataLoader(
+            #     self.ora_dataset, batch_size=1, num_workers=0
+            # )
+            # self.data, self.targets = self._get_ora_data()
+            # del self.ora_dataset
+            # del self.ora_dataloader
+        # else:
+        self.targets = []
+        self.data = self._extract_data_from_hdf5(
+            dataset, datapath, split, n_classes, seed
+        )
 
         # Optionally only load a subset of images
         if n_images is not None:
@@ -256,12 +258,15 @@ class UnlabelledDataset(Dataset):
             classes = []
             with h5py.File(os.path.join(datapath, "data.hdf5"), "r") as f_data:
                 with open(
-                    os.path.join(datapath, "vinyals_{}_labels.json".format(split))
+                        os.path.join(datapath, "vinyals_{}_labels.json".format(split))
                 ) as f_labels:
                     labels = json.load(f_labels)
                     for label in labels:
                         img_set, alphabet, character = label
+                        targets.append("".join(label))
                         classes.append(f_data[img_set][alphabet][character][()])
+            targets = LabelEncoder().fit_transform(targets)
+            self.targets = np.concatenate([targets]).repeat(20)
         # Load mini-imageNet
         else:
             with h5py.File(os.path.join(datapath, split + "_data.hdf5"), "r") as f:
@@ -270,12 +275,11 @@ class UnlabelledDataset(Dataset):
 
         # Optionally filter out some classes)
         if n_classes is not None:
-            random_idxs = np.random.RandomState(seed).permutation(len(classes))[
-                :n_classes
-            ]
+            random_idxs = np.random.RandomState(seed).permutation(len(classes))[:n_classes]
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
+
         data = np.concatenate(classes)
         return data
 
@@ -395,26 +399,26 @@ def identity_transform(img_shape):
 
 class UnlabelledDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        dataset,
-        datapath,
-        transform=None,
-        n_support=1,
-        n_query=1,
-        n_images=None,
-        n_classes=None,
-        batch_size=50,
-        num_workers=8,
-        seed=10,
-        no_aug_support=False,
-        no_aug_query=False,
-        merge_train_val=True,
-        mode="val",
-        eval_ways=5,
-        eval_support_shots=5,
-        eval_query_shots=15,
-        train_oracle_mode=False,
-        **kwargs
+            self,
+            dataset,
+            datapath,
+            transform=None,
+            n_support=1,
+            n_query=1,
+            n_images=None,
+            n_classes=None,
+            batch_size=50,
+            num_workers=8,
+            seed=10,
+            no_aug_support=False,
+            no_aug_query=False,
+            merge_train_val=True,
+            mode="val",
+            eval_ways=5,
+            eval_support_shots=5,
+            eval_query_shots=15,
+            train_oracle_mode=False,
+            **kwargs
     ):
         super().__init__()
 
@@ -481,7 +485,6 @@ class UnlabelledDataModule(pl.LightningDataModule):
             self.dataset_train = ConcatDataset([self.dataset_train, dataset_val])
 
     def train_dataloader(self):
-
         dataloader_train = DataLoader(
             self.dataset_train,
             batch_size=self.batch_size,
@@ -523,17 +526,17 @@ class UnlabelledDataModule(pl.LightningDataModule):
 # Cell
 class OmniglotDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_dir: str,
-        shots: int,
-        ways: int,
-        shuffle_ds: bool,
-        test_shots: int,
-        meta_train: bool,
-        download: bool,
-        batch_size: str,
-        shuffle: bool,
-        num_workers: int,
+            self,
+            data_dir: str,
+            shots: int,
+            ways: int,
+            shuffle_ds: bool,
+            test_shots: int,
+            meta_train: bool,
+            download: bool,
+            batch_size: str,
+            shuffle: bool,
+            num_workers: int,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -598,17 +601,17 @@ class OmniglotDataModule(pl.LightningDataModule):
 # Cell
 class MiniImagenetDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_dir: str,
-        shots: int,
-        ways: int,
-        shuffle_ds: bool,
-        test_shots: int,
-        meta_train: bool,
-        download: bool,
-        batch_size: str,
-        shuffle: bool,
-        num_workers: int,
+            self,
+            data_dir: str,
+            shots: int,
+            ways: int,
+            shuffle_ds: bool,
+            test_shots: int,
+            meta_train: bool,
+            download: bool,
+            batch_size: str,
+            shuffle: bool,
+            num_workers: int,
     ):
         self.data_dir = data_dir
         self.shots = shots

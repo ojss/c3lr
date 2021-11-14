@@ -46,11 +46,11 @@ dm = UnlabelledDataModule(
     batch_size=50,
     seed=10,
     mode="trainval",
-    num_workers=2,
+    num_workers=0,
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
-    train_oracle_mode=False
+    train_oracle_mode=True
 )
 
 model = ProtoCLR(
@@ -58,17 +58,17 @@ model = ProtoCLR(
     n_query=3,
     batch_size=50,
     distance="euclidean",
-    τ=0.5,
+    tau=0.5,
     num_input_channels=1,
     decoder_class=Decoder4L,
-    encoder_class=AttnEncoder4L,
+    encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     ae=True,
     gamma=.001,
     log_images=True,
     clustering_algo=None,
-    oracle_mode=False,
+    oracle_mode=True,
     use_entropy=False
 )
 
@@ -94,7 +94,7 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    gpus=1,
+    gpus=0,
     # logger=logger,
 )
 

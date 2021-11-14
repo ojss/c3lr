@@ -5,11 +5,11 @@ __all__ = ['euclidean_distance', 'cosine_similarity', 'get_num_samples', 'get_pr
            'Decoder4L4Mini', 'CAE4L', 'get_images_labels_from_dl']
 
 # Cell
-#export
+# export
 # adapted from the torchmeta code
 import importlib
 from functools import partial
-from performer_pytorch import SelfAttention
+from .nn_utils import mean_from_cluster
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -29,7 +29,8 @@ def euclidean_distance(x, y):
     x, y have shapes (batch_size, num_examples, embedding_size).
     x is prototypes, y are embeddings in most cases
     """
-    return torch.sum((x.unsqueeze(2) - y.unsqueeze(1))** 2, dim=-1)
+    return torch.sum((x.unsqueeze(2) - y.unsqueeze(1)) ** 2, dim=-1)
+
 
 # Cell
 
@@ -58,40 +59,42 @@ def get_num_samples(targets, num_classes, dtype=None):
         num_samples.scatter_add_(1, targets, ones)
     return num_samples
 
+
 # Cell
 
 def get_prototypes(self, emb, targets, num_classes):
-        """Compute the prototypes (the mean vector of the embedded training/support
-        points belonging to its class) for each classes in the task.
-        Parameters
-        ----------
-        embeddings : `torch.FloatTensor` instance
-            A tensor containing the embeddings of the support points. This tensor
-            has shape `(batch_size, num_examples, embedding_size)`.
-        targets : `torch.LongTensor` instance
-            A tensor containing the targets of the support points. This tensor has
-            shape `(batch_size, num_examples)`.
-        num_classes : int
-            Number of classes in the task.
-        Returns
-        -------
-        prototypes : `torch.FloatTensor` instance
-            A tensor containing the prototypes for each class. This tensor has shape
-            `(batch_size, num_classes, embedding_size)`.
-        """
+    """Compute the prototypes (the mean vector of the embedded training/support
+    points belonging to its class) for each classes in the task.
+    Parameters
+    ----------
+    embeddings : `torch.FloatTensor` instance
+        A tensor containing the embeddings of the support points. This tensor
+        has shape `(batch_size, num_examples, embedding_size)`.
+    targets : `torch.LongTensor` instance
+        A tensor containing the targets of the support points. This tensor has
+        shape `(batch_size, num_examples)`.
+    num_classes : int
+        Number of classes in the task.
+    Returns
+    -------
+    prototypes : `torch.FloatTensor` instance
+        A tensor containing the prototypes for each class. This tensor has shape
+        `(batch_size, num_classes, embedding_size)`.
+    """
 
-        batch_size, emb_size = emb.size(0), emb.size(-1)
+    batch_size, emb_size = emb.size(0), emb.size(-1)
 
-        num_samples = self.get_num_samples(targets, num_classes, dtype=emb.dtype)
-        num_samples.unsqueeze_(-1)
-        num_samples = torch.max(num_samples, torch.ones_like(num_samples))
+    num_samples = self.get_num_samples(targets, num_classes, dtype=emb.dtype)
+    num_samples.unsqueeze_(-1)
+    num_samples = torch.max(num_samples, torch.ones_like(num_samples))
 
-        prototypes = emb.new_zeros((batch_size, num_classes, emb_size))
-        indices = targets.unsqueeze(-1).expand_as(emb)
+    prototypes = emb.new_zeros((batch_size, num_classes, emb_size))
+    indices = targets.unsqueeze(-1).expand_as(emb)
 
-        prototypes.scatter_add_(1, indices, emb).div_(num_samples)
+    prototypes.scatter_add_(1, indices, emb).div_(num_samples)
 
-        return prototypes
+    return prototypes
+
 
 # Cell
 def prototypical_loss(prototypes, embeddings, targets,
@@ -137,6 +140,7 @@ def prototypical_loss(prototypes, embeddings, targets,
         raise ValueError('Distance must be "euclidean" or "cosine"')
     return loss, accuracy.item()
 
+
 # Cell
 def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
     predicted_labels = None
@@ -158,14 +162,15 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
 
 # Cell
 def cluster_diff_loss(
-    z: torch.Tensor,
-    labels: torch.Tensor,
-    ways,
-    similarity="cosine",
-    temperature=0.5,
-    reduction="mean",
+        z: torch.Tensor,
+        labels,
+        ways,
+        similarity="cosine",
+        temperature=0.5,
+        reduction="mean",
 ):
-# TODO: use the probabilities from HDBSCAN and calculate CE
+    labels = torch.Tensor(labels).type_as(z).long()
+    # TODO: use the probabilities from HDBSCAN and calculate CE
     """
     For each cluster (defined by labels) calculate the cross entropy loss.
         1. Filter embeddings based on clusters - c1, c2, c3, c4
@@ -178,23 +183,36 @@ def cluster_diff_loss(
     loss = torch.tensor(0.).to(z.device)
     z_labels = torch.cat([z.squeeze(0), labels.reshape([z.shape[1], 1])], dim=-1)
 
-    for label in labels.unique().tolist():
-        # the label is in the last dimension so using -1 is convenient
-        z_j_t = z_labels[z_labels[:, -1] == label][:, :-1] # after filtering ignoring the label column
-        sim = f_sim(z_j_t.unsqueeze(1), z_j_t.unsqueeze(0)) / temperature
-        loss += F.cross_entropy(
-            (-1 if similarity == 'euclidean' else 1) * sim,
-            torch.tensor([(0 if similarity == 'euclidean' else 1) / temperature for _ in range(sim.shape[0])], device=z.device).long(),
-            reduction='mean'
-        )
-    return loss / ways
+    if reduction == 'mean':
+        tmp = labels.view(labels.size(0), 1).expand(-1, z.squeeze(0).size(1))
+
+        unique_labels, labels_count = tmp.unique(dim=0, return_counts=True)
+
+        res = torch.zeros_like(unique_labels, dtype=torch.float).scatter_add_(0, tmp, z.squeeze(0))
+        res = res / labels_count.float().unsqueeze(1)
+
+        dists = euclidean_distance(res.unsqueeze(0), z)
+        loss = F.cross_entropy(-dists, labels.unsqueeze(0))
+
+    else:
+        for label in labels.unique().tolist():
+            # the label is in the last dimension so using -1 is convenient
+            z_j_t = z_labels[z_labels[:, -1] == label][:, :-1]  # after filtering ignoring the label column
+            sim = f_sim(z_j_t.unsqueeze(1), z_j_t.unsqueeze(0)) / temperature
+            loss += F.cross_entropy(
+                (-1 if similarity == 'euclidean' else 1) * sim,
+                torch.tensor([(0 if similarity == 'euclidean' else 1) / temperature for _ in range(sim.shape[0])],
+                             device=z.device).long(),
+                reduction='mean'
+            )
+    return loss
 
 
 class HLoss(nn.Module):
     def __init__(self, dim=0) -> None:
         super().__init__()
         self.dim = dim
-    
+
     def forward(self, x):
         b = F.softmax(x, dim=self.dim) * F.log_softmax(x, dim=self.dim)
         b = -1.0 * b.sum()
@@ -220,15 +238,16 @@ class CNN_4Layer(nn.Module):
         embeddings = self.encoder(inputs.view(-1, *inputs.shape[-3:]))
         return embeddings.view(*inputs.shape[:-3], -1)
 
+
 # Cell
 
 class Encoder(nn.Module):
 
     def __init__(self,
-                 num_input_channels : int,
-                 base_channel_size : int,
-                 latent_dim : int,
-                 act_fn : object = nn.GELU):
+                 num_input_channels: int,
+                 base_channel_size: int,
+                 latent_dim: int,
+                 act_fn: object = nn.GELU):
         """
         Inputs:
             - num_input_channels : Number of input channels of the image. For CIFAR, this parameter is 3
@@ -239,31 +258,32 @@ class Encoder(nn.Module):
         super().__init__()
         c_hid = base_channel_size
         self.net = nn.Sequential(
-            nn.Conv2d(num_input_channels, c_hid, kernel_size=3, padding=1, stride=2), # 28x28 => 16x16
+            nn.Conv2d(num_input_channels, c_hid, kernel_size=3, padding=1, stride=2),  # 28x28 => 16x16
             act_fn(),
             nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
             act_fn(),
-            nn.Conv2d(c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 16x16 => 8x8
+            nn.Conv2d(c_hid, 2 * c_hid, kernel_size=3, padding=1, stride=2),  # 16x16 => 8x8
             act_fn(),
-            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
             act_fn(),
-            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 8x8 => 4x4
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1, stride=2),  # 8x8 => 4x4
             act_fn(),
-            nn.Flatten(), # Image grid to single feature vector
-            nn.Linear(2*16*c_hid, latent_dim)
+            nn.Flatten(),  # Image grid to single feature vector
+            nn.Linear(2 * 16 * c_hid, latent_dim)
         )
 
     def forward(self, x):
         return self.net(x)
 
+
 # Cell
 class Decoder(nn.Module):
 
     def __init__(self,
-                 num_input_channels : int,
-                 base_channel_size : int,
-                 latent_dim : int,
-                 act_fn : object = nn.GELU):
+                 num_input_channels: int,
+                 base_channel_size: int,
+                 latent_dim: int,
+                 act_fn: object = nn.GELU):
         """
         Inputs:
             - num_input_channels : Number of channels of the image to reconstruct. For CIFAR, this parameter is 3
@@ -274,20 +294,21 @@ class Decoder(nn.Module):
         super().__init__()
         c_hid = base_channel_size
         self.linear = nn.Sequential(
-            nn.Linear(latent_dim, 2*16*c_hid),
+            nn.Linear(latent_dim, 2 * 16 * c_hid),
             act_fn()
         )
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1, stride=2), # 4x4 => 8x8
+            nn.ConvTranspose2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1, stride=2),  # 4x4 => 8x8
             act_fn(),
-            nn.Conv2d(2*c_hid, 2*c_hid, kernel_size=3, padding=1),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
             act_fn(),
-            nn.ConvTranspose2d(2*c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2), # 8x8 => 16x16
+            nn.ConvTranspose2d(2 * c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2),  # 8x8 => 16x16
             act_fn(),
             nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
             act_fn(),
-            nn.ConvTranspose2d(c_hid, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2), # 16x16 => 32x32
-            nn.Tanh() # The input images is scaled between -1 and 1, hence the output has to be bounded as well
+            nn.ConvTranspose2d(c_hid, num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2),
+            # 16x16 => 32x32
+            nn.Tanh()  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
         )
 
     def forward(self, x):
@@ -314,6 +335,7 @@ class CAE(nn.Module):
 
         x = self.decoder(embeddings)
         return embeddings.view(*inputs.shape[:-3], -1), x.view(*inputs.shape)
+
 
 # Cell
 
@@ -350,6 +372,7 @@ class Encoder4L(nn.Module):
 
     def forward(self, inputs):
         return self.encoder(inputs)
+
 
 class AttnEncoder4L(nn.Module):
     def __init__(self, in_channels=1, hidden_size=64, out_channels=64) -> None:
@@ -388,6 +411,7 @@ class AttnEncoder4L(nn.Module):
             nn.Linear(in_features=256, out_features=64),
             nn.GELU()
         )
+
     def forward(self, x):
         o = self.encoder(x)
         qkv = self.qkv_proj(o)
@@ -476,8 +500,9 @@ class CAE4L(nn.Module):
         recons = self.decoder(embeddings.unsqueeze(-1).unsqueeze(-1))
         return embeddings.view(*inputs.shape[:-3], -1), recons.view(*inputs.shape)
 
+
 # Cell
-def get_images_labels_from_dl(dl:torch.utils.data.DataLoader):
+def get_images_labels_from_dl(dl: torch.utils.data.DataLoader):
     xs = next(iter(dl))
     x_train, y_train = xs['train']
     x_test, y_test = xs['test']

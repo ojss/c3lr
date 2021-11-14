@@ -9,7 +9,7 @@ __all__ = [
 # export
 import copy
 import importlib
-
+from sklearn.preprocessing import LabelEncoder
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -200,8 +200,8 @@ class ProtoCLR(pl.LightningModule):
         z_query = z[:, ways * self.n_support:, :]
         if self.oracle_mode:
             loss = cluster_diff_loss(
-                z_query,
-                y_query,
+                z,
+                y,
                 self.eval_ways,
                 similarity=self.distance,
                 temperature=tau,
@@ -296,12 +296,16 @@ class ProtoCLR(pl.LightningModule):
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
         self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
 
-        if self.oracle_mode and self.clustering_algo is not None:
+        if self.oracle_mode and self.clustering_algo is None:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
             labels = batch["labels"]
             y_support = labels[:, 0]
             y_query = labels[:, 1:].flatten()
+            lb_enc = LabelEncoder()
+            lb_enc.fit(y_support)
+            y_support = torch.Tensor(lb_enc.transform(y_support)).type_as(labels)
+            y_query = torch.Tensor(lb_enc.transform(y_query)).type_as(labels)
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
             self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
             loss += loss_cluster
