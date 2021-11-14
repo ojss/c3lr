@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#SBATCH --job-name=get-good
+
 #SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
@@ -53,7 +55,7 @@ srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
-	--oracle_mode=False \
+	--oracle_mode=True \
 	--callbacks=False \
 	--estop=True \
 	--no_aug_support=True
