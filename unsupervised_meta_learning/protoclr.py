@@ -78,6 +78,7 @@ class ProtoCLR(pl.LightningModule):
             mode="trainval",
             eval_ways=5,
             clustering_algo="spectral",
+            cl_reduction='mean',
             sup_finetune=True,
             sup_finetune_lr=1e-3,
             sup_finetune_epochs=15,
@@ -92,6 +93,7 @@ class ProtoCLR(pl.LightningModule):
         self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim)
 
         self.clustering_algo = clustering_algo
+        self.cl_reduction = cl_reduction
 
         self.ae = ae
         if self.ae == True:
@@ -205,6 +207,7 @@ class ProtoCLR(pl.LightningModule):
                 self.eval_ways,
                 similarity=self.distance,
                 temperature=tau,
+                reduction=self.cl_reduction
             )
         else:
             reduced_z = umap.UMAP(
@@ -222,6 +225,7 @@ class ProtoCLR(pl.LightningModule):
                     self.eval_ways,
                     similarity=self.distance,
                     temperature=tau,
+                    reduction=self.cl_reduction
                 )
             elif self.clustering_algo == "hdbscan":
                 clf, predicted_labels, probs = clusterer(
@@ -244,6 +248,7 @@ class ProtoCLR(pl.LightningModule):
                     self.eval_ways,
                     similarity=self.distance,
                     temperature=tau,
+                    reduction=self.cl_reduction
                 )
                 if self.use_entropy:
                     ent = torch.distributions.Categorical(

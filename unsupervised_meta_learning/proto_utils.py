@@ -195,16 +195,9 @@ def cluster_diff_loss(
         loss = F.cross_entropy(-dists, labels.unsqueeze(0))
 
     else:
-        for label in labels.unique().tolist():
-            # the label is in the last dimension so using -1 is convenient
-            z_j_t = z_labels[z_labels[:, -1] == label][:, :-1]  # after filtering ignoring the label column
-            sim = f_sim(z_j_t.unsqueeze(1), z_j_t.unsqueeze(0)) / temperature
-            loss += F.cross_entropy(
-                (-1 if similarity == 'euclidean' else 1) * sim,
-                torch.tensor([(0 if similarity == 'euclidean' else 1) / temperature for _ in range(sim.shape[0])],
-                             device=z.device).long(),
-                reduction='mean'
-            )
+        dists = torch.cdist(x1=z, x2=z, p=2.)
+        loss = F.cross_entropy(-dists, labels.unsqueeze(0))
+
     return loss
 
 

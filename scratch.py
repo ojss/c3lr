@@ -64,6 +64,7 @@ model = ProtoCLR(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
+    cl_reduction=None,
     ae=False,
     gamma=.001,
     log_images=True,
@@ -94,7 +95,7 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    gpus=1,
+    gpus=0,
     # logger=logger,
 )
 
