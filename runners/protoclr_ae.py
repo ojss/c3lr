@@ -22,37 +22,39 @@ from unsupervised_meta_learning.protoclr import ProtoCLR
 
 
 def protoclr_ae(
-    dataset,
-    datapath,
-    lr=1e-3,
-    inner_lr=1e-3,
-    gamma=1.0,
-    distance="euclidean",
-    ckpt_dir=Path("./ckpts"),
-    ae=False,
-    tau=1.,
-    eval_ways=5,
-    clustering_alg=None,
-    cl_reduction=None,
-    cluster_on_latent=False,
-    eval_support_shots=1,
-    eval_query_shots=15,
-    n_images=None,
-    n_classes=None,
-    no_aug_support=False,
-    no_aug_query=False,
-    logging="wandb",
-    log_images=False,
-    profiler="torch",
-    oracle_mode=False,
-    num_workers=0,
-    callbacks=True,
-    estop=True,
-    use_plotly=True,
-    use_entropy=False,
-    tuner_mode=False,
+        dataset,
+        datapath,
+        lr=1e-3,
+        inner_lr=1e-3,
+        gamma=1.0,
+        distance="euclidean",
+        ckpt_dir=Path("./ckpts"),
+        ae=False,
+        tau=1.,
+        eval_ways=5,
+        clustering_alg=None,
+        cl_reduction=None,
+        cluster_on_latent=False,
+        eval_support_shots=1,
+        eval_query_shots=15,
+        n_images=None,
+        n_classes=None,
+        n_support=1,
+        n_query=3,
+        batch_size=50,
+        no_aug_support=False,
+        no_aug_query=False,
+        logging="wandb",
+        log_images=False,
+        profiler="torch",
+        oracle_mode=False,
+        num_workers=0,
+        callbacks=True,
+        estop=True,
+        use_plotly=True,
+        use_entropy=False,
+        tuner_mode=False,
 ):
-
     if tuner_mode is True:
         os.environ["SLURM_JOB_NAME"] = "bash"
         del os.environ["SLURM_NTASKS"]
@@ -62,13 +64,13 @@ def protoclr_ae(
         dataset,
         datapath,
         transform=None,
-        n_support=1,
-        n_query=3,
+        n_support=n_support,
+        n_query=n_query,
         n_images=n_images,
         n_classes=n_classes,
         no_aug_support=no_aug_support,
         no_aug_query=no_aug_query,
-        batch_size=50,
+        batch_size=batch_size,
         seed=10,
         mode="trainval",
         num_workers=num_workers,
@@ -85,9 +87,9 @@ def protoclr_ae(
         decoder_class = Decoder4L4Mini
         num_input_channels = 3
     model = ProtoCLR(
-        n_support=1,
-        n_query=3,
-        batch_size=50,
+        n_support=n_support,
+        n_query=n_query,
+        batch_size=batch_size,
         gamma=gamma,
         lr=lr,
         inner_lr=inner_lr,
@@ -162,8 +164,8 @@ def protoclr_ae(
         )
 
     ckpt_path = (
-        ckpt_dir
-        / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}"
+            ckpt_dir
+            / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}"
     )
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",
