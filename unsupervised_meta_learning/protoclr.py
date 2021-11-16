@@ -77,7 +77,7 @@ class ProtoCLR(pl.LightningModule):
             tau=0.5,
             mode="trainval",
             eval_ways=5,
-            clustering_algo="spectral",
+            clustering_algo=None,
             cl_reduction='mean',
             sup_finetune=True,
             sup_finetune_lr=1e-3,
