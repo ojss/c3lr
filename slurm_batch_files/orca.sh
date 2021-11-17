@@ -50,10 +50,12 @@ srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_
 	--distance='euclidean' \
 	--tau=1.0 \
 	--logging='wandb' \
+	--clustering_alg="None" \
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
 	--oracle_mode=False \
 	--callbacks=False \
 	--estop=True \
-	--no_aug_support=True
+	--no_aug_support=True \
+	--n_classes=10

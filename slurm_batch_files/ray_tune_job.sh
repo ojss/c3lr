@@ -3,14 +3,14 @@
 
 #SBATCH --job-name=ojass-ray
 #SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=8GB
-#SBATCH --nodes=5
+#SBATCH --mem-per-cpu=4GB
+#SBATCH --nodes=3
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
 
 #SBATCH --partition=general
-#SBATCH --qos=long
-#SBATCH --time=48:00:00
+#SBATCH --qos=medium
+#SBATCH --time=10:00:00
 #SBATCH --mail-type=END
 #SBATCH --output=tuner_output.out
 
@@ -59,7 +59,7 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
 
 # __doc_worker_ray_start__
 # optional, though may be useful in certain versions of Ray < 1.0.
-sleep 10
+sleep 15
 
 # number of nodes other than the head node
 worker_num=$((SLURM_JOB_NUM_NODES - 1))
@@ -70,7 +70,7 @@ for ((i = 1; i <= worker_num; i++)); do
     srun --nodes=1 --ntasks=1 -w "$node_i" \
         ray start --address "$ip_head" \
         --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
-    sleep 5
+    sleep 10
 done
 # __doc_worker_ray_end__
 
@@ -78,4 +78,5 @@ done
 # ray/doc/source/cluster/examples/simple-trainer.py
 
 # ===== Call your code below =====
+sleep 15
 python -u ../tuner.py "$SLURM_CPUS_PER_TASK"

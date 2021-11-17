@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#SBATCH --job-name=get-good
-
 #SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
@@ -42,7 +40,6 @@ module load miniconda/3.9
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
-# srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
 srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
 	--lr=1e-3 \
@@ -52,10 +49,13 @@ srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_
 	--distance='euclidean' \
 	--tau=1.0 \
 	--logging='wandb' \
+	--clustering_alg="None" \
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
-	--oracle_mode=True \
+	--train_oracle_mode=True \
+	--train_oracle_ways=10 \
+	--train_oracle_shots=5 \
 	--callbacks=False \
 	--estop=True \
-	--no_aug_support=True
+	--no_aug_support=True \
