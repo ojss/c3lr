@@ -9,15 +9,16 @@ __all__ = [
 # export
 import copy
 import importlib
-from sklearn.preprocessing import LabelEncoder
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from sklearn.preprocessing import LabelEncoder
 from torch.autograd import Variable
 from tqdm.auto import tqdm
+
 from .proto_utils import (AttnEncoder4L, Decoder4L, Encoder4L, cluster_diff_loss,
                           clusterer, get_prototypes, prototypical_loss)
 
@@ -85,7 +86,9 @@ class ProtoCLR(pl.LightningModule):
             ft_freeze_backbone=True,
             finetune_batch_norm=False,
             log_images=True,
-            oracle_mode=False,
+            train_oracle_mode=False,
+            train_oracle_ways=None,
+            train_oracle_shots=None,
             use_entropy=False,
     ):
         super().__init__()
@@ -127,7 +130,14 @@ class ProtoCLR(pl.LightningModule):
         self.finetune_batch_norm = finetune_batch_norm
 
         self.log_images = log_images
-        self.oracle_mode = oracle_mode
+        self.train_oracle_mode = train_oracle_mode
+        self.train_oracle_ways = train_oracle_ways
+        self.train_oracle_shots = train_oracle_shots
+        if self.train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None:
+            self.no_unsqueeze_flg = True
+        else:
+            self.no_unsqueeze_flg = False
+
         self.use_entropy = use_entropy
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
@@ -188,7 +198,7 @@ class ProtoCLR(pl.LightningModule):
         tau = self.tau
         loss = 0.0
         emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
-        if self.oracle_mode:
+        if self.train_oracle_mode:
             y = torch.cat([y_support, y_query], dim=0).detach().cpu().numpy()
         else:
             y = torch.cat([y_support, y_query], dim=1).detach().cpu().flatten().numpy()
@@ -200,7 +210,7 @@ class ProtoCLR(pl.LightningModule):
                     ]  # TODO: make use of this in the loss somewhere?
         # e.g. [50*n_query,2]
         z_query = z[:, ways * self.n_support:, :]
-        if self.oracle_mode:
+        if self.train_oracle_mode:
             loss = cluster_diff_loss(
                 z,
                 y,
@@ -262,10 +272,11 @@ class ProtoCLR(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         opt = self.optimizers()
         sch = self.lr_schedulers()
-
+        opt.zero_grad()
         # [batch_size x ways x shots x image_dim]
         data = batch["data"]
-        data = data.unsqueeze(0)
+        if not self.no_unsqueeze_flg:
+            data = data.unsqueeze(0)
         # e.g. 50 images, 2 support, 2 query, miniImageNet: torch.Size([1, 50, 4, 3, 84, 84])
         batch_size = data.size(0)
         ways = data.size(1)
@@ -296,21 +307,24 @@ class ProtoCLR(pl.LightningModule):
         x = torch.cat([x_support, x_query], 1)
         z, x_hat = self.forward(x)
 
-        opt.zero_grad()
-
         loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
         self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
 
-        if self.oracle_mode and self.clustering_algo is None:
+        if self.train_oracle_mode and self.clustering_algo is None:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
             labels = batch["labels"]
-            y_support = labels[:, 0].cpu()
-            y_query = labels[:, 1:].flatten().cpu()
-            lb_enc = LabelEncoder()
-            lb_enc.fit(y_support)
-            y_support = torch.Tensor(lb_enc.transform(y_support)).type_as(labels)
-            y_query = torch.Tensor(lb_enc.transform(y_query)).type_as(labels)
+            if not self.no_unsqueeze_flg:
+                y_support = labels[:, 0].cpu()
+                y_query = labels[:, 1:].flatten().cpu()
+                lb_enc = LabelEncoder()
+                lb_enc.fit(y_support)
+                y_support = torch.Tensor(lb_enc.transform(y_support)).type_as(labels)
+                y_query = torch.Tensor(lb_enc.transform(y_query)).type_as(labels)
+            else:
+                labels = labels.squeeze(0)
+                y_support = labels[:self.train_oracle_shots * self.train_oracle_ways]
+                y_query = y_support.repeat_interleave(3)
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
             self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
             loss += loss_cluster

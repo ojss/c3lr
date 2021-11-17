@@ -15,7 +15,7 @@ from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
-    UnlabelledDataset,
+    UnlabelledDataset, OracleOmniglotModule
 )
 from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini
 from unsupervised_meta_learning.protoclr import ProtoCLR
@@ -47,7 +47,9 @@ def protoclr_ae(
         logging="wandb",
         log_images=False,
         profiler="torch",
-        oracle_mode=False,
+        train_oracle_mode=False,
+        train_oracle_ways=None,
+        train_oracle_shots=None,
         num_workers=0,
         callbacks=True,
         estop=True,
@@ -59,26 +61,41 @@ def protoclr_ae(
         os.environ["SLURM_JOB_NAME"] = "bash"
         del os.environ["SLURM_NTASKS"]
         del os.environ["SLURM_JOB_NAME"]
-
-    dm = UnlabelledDataModule(
-        dataset,
-        datapath,
-        transform=None,
-        n_support=n_support,
-        n_query=n_query,
-        n_images=n_images,
-        n_classes=n_classes,
-        no_aug_support=no_aug_support,
-        no_aug_query=no_aug_query,
-        batch_size=batch_size,
-        seed=10,
-        mode="trainval",
-        num_workers=num_workers,
-        eval_ways=eval_ways,
-        eval_support_shots=eval_support_shots,
-        eval_query_shots=eval_query_shots,
-        train_oracle_mode=oracle_mode,
-    )
+    if train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None and dataset == 'omniglot':
+        dm = OracleOmniglotModule(
+            dataset,
+            datapath,
+            n_support=n_support,
+            n_query=n_query,
+            batch_size=1,
+            num_workers=2,
+            eval_ways=5,
+            eval_support_shots=5,
+            eval_query_shots=15,
+            train_oracle_mode=train_oracle_mode,
+            train_oracle_shots=train_oracle_shots,
+            train_oracle_ways=train_oracle_ways
+        )
+    else:
+        dm = UnlabelledDataModule(
+            dataset,
+            datapath,
+            transform=None,
+            n_support=n_support,
+            n_query=n_query,
+            n_images=n_images,
+            n_classes=n_classes,
+            no_aug_support=no_aug_support,
+            no_aug_query=no_aug_query,
+            batch_size=batch_size,
+            seed=10,
+            mode="trainval",
+            num_workers=num_workers,
+            eval_ways=eval_ways,
+            eval_support_shots=eval_support_shots,
+            eval_query_shots=eval_query_shots,
+            train_oracle_mode=train_oracle_mode,
+        )
 
     if dataset == "omniglot":
         decoder_class = Decoder4L
@@ -103,11 +120,10 @@ def protoclr_ae(
         clustering_algo=clustering_alg,
         cl_reduction=cl_reduction,
         log_images=log_images,
-        oracle_mode=oracle_mode,
-        use_entropy=use_entropy,
-    )
-    dataset_train = UnlabelledDataset(
-        dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
+        train_oracle_mode=train_oracle_mode,
+        train_oracle_ways=train_oracle_ways,
+        train_oracle_shots=train_oracle_shots,
+        use_entropy=use_entropy
     )
 
     cbs = []
@@ -134,7 +150,7 @@ def protoclr_ae(
                 "clustering_algo": clustering_alg,
                 "cl_reduction": cl_reduction,
                 "clustering_on_latent": cluster_on_latent,
-                "oracle_mode": oracle_mode,
+                "oracle_mode": train_oracle_mode,
                 "use_entropy": use_entropy,
                 "timestamp": str(datetime.now()),
             },
@@ -149,6 +165,9 @@ def protoclr_ae(
                 PCACallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
             ]
             if ae:
+                dataset_train = UnlabelledDataset(
+                    dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
+                )
                 cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
         elif estop:
             cbs = [EarlyStopping(monitor="val_accuracy", patience=200, min_delta=0.02)]
@@ -157,6 +176,9 @@ def protoclr_ae(
 
     elif logging == "tb":
         logger = TensorBoardLogger(save_dir="tb_logs")
+        dataset_train = UnlabelledDataset(
+            dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
+        )
         cbs = (
             [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
             if callbacks and ae
@@ -165,7 +187,7 @@ def protoclr_ae(
 
     ckpt_path = (
             ckpt_dir
-            / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{oracle_mode}/{str(datetime.now())}"
+            / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
     )
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",

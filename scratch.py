@@ -12,7 +12,7 @@ from pytorch_lightning.profiler import PyTorchProfiler
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
     get_episode_loader,
-    UnlabelledDataset,
+    UnlabelledDataset, OracleOmniglotModule
 )
 from unsupervised_meta_learning.proto_utils import (
     CAE,
@@ -34,23 +34,39 @@ from unsupervised_meta_learning.protoclr import ProtoCLR
 
 profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
+# dm = UnlabelledDataModule(
+#     "omniglot",
+#     "./data/untarred",
+#     transform=None,
+#     n_support=1,
+#     n_query=3,
+#     n_images=None,
+#     n_classes=10,
+#     batch_size=50,
+#     seed=10,
+#     mode="trainval",
+#     num_workers=0,
+#     eval_ways=5,
+#     eval_support_shots=5,
+#     eval_query_shots=15,
+#     train_oracle_mode=False,
+#     train_oracle_shots=5,
+#     train_oracle_ways=10
+# )
 
-dm = UnlabelledDataModule(
-    "omniglot",
-    "./data/untarred",
-    transform=None,
-    n_support=1,
-    n_query=3,
-    n_images=None,
-    n_classes=None,
-    batch_size=50,
-    seed=10,
-    mode="trainval",
-    num_workers=0,
-    eval_ways=5,
-    eval_support_shots=5,
-    eval_query_shots=15,
-    train_oracle_mode=True
+dm = OracleOmniglotModule(
+        "omniglot",
+        "./data/untarred",
+        n_support=1,
+        n_query=3,
+        batch_size=1,
+        num_workers=2,
+        eval_ways=5,
+        eval_support_shots=5,
+        eval_query_shots=15,
+        train_oracle_mode=True,
+        train_oracle_shots=5,
+        train_oracle_ways=10
 )
 
 model = ProtoCLR(
@@ -68,8 +84,9 @@ model = ProtoCLR(
     ae=False,
     gamma=.001,
     log_images=True,
-    clustering_algo=None,
-    oracle_mode=True,
+    train_oracle_mode=True,
+    train_oracle_shots=5,
+    train_oracle_ways=10,
     use_entropy=False
 )
 
@@ -77,7 +94,6 @@ logger = WandbLogger(
     project="ProtoCLR+AE",
     config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
 )
-
 
 trainer = pl.Trainer(
     profiler="simple",
