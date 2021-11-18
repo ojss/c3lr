@@ -61,7 +61,7 @@ def protoclr_ae(
         os.environ["SLURM_JOB_NAME"] = "bash"
         del os.environ["SLURM_NTASKS"]
         del os.environ["SLURM_JOB_NAME"]
-    if train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None and dataset == 'omniglot':
+    if train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None:
         dm = OracleDataModule(
             dataset,
             datapath,
