@@ -57,5 +57,5 @@ srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_
 	--train_oracle_ways=10 \
 	--train_oracle_shots=5 \
 	--callbacks=False \
-	--estop=True \
+	--patience=200 \
 	--no_aug_support=True \
