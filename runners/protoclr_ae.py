@@ -15,7 +15,7 @@ from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
-    UnlabelledDataset, OracleOmniglotModule
+    UnlabelledDataset, OracleDataModule
 )
 from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini
 from unsupervised_meta_learning.protoclr import ProtoCLR
@@ -52,7 +52,7 @@ def protoclr_ae(
         train_oracle_shots=None,
         num_workers=0,
         callbacks=True,
-        estop=True,
+        patience=200,
         use_plotly=True,
         use_entropy=False,
         tuner_mode=False,
@@ -62,7 +62,7 @@ def protoclr_ae(
         del os.environ["SLURM_NTASKS"]
         del os.environ["SLURM_JOB_NAME"]
     if train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None and dataset == 'omniglot':
-        dm = OracleOmniglotModule(
+        dm = OracleDataModule(
             dataset,
             datapath,
             n_support=n_support,
@@ -169,8 +169,8 @@ def protoclr_ae(
                     dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
                 )
                 cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
-        elif estop:
-            cbs = [EarlyStopping(monitor="val_accuracy", patience=200, min_delta=0.02)]
+        elif patience is not None:
+            cbs = [EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02)]
         # should be there no matter what?
         cbs.append(ConfidenceIntervalCallback())
 
