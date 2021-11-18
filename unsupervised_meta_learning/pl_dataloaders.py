@@ -13,6 +13,8 @@ __all__ = [
     "UnlabelledDataModule",
     "OmniglotDataModule",
     "MiniImagenetDataModule",
+    "OracleDataset",
+    "OracleDataModule"
 ]
 
 # Cell
@@ -32,7 +34,7 @@ from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
-from torchmeta.datasets import Omniglot
+from torchmeta.datasets import Omniglot, MiniImagenet, CUB, CIFARFS, TieredImagenet, TripleMNIST, DoubleMNIST
 from torchmeta.datasets.helpers import (cifar_fs, cub, doublemnist,
                                         miniimagenet, omniglot, tieredimagenet,
                                         triplemnist)
@@ -199,7 +201,7 @@ def identity_transform(img_shape):
     return transforms.Compose([transforms.Resize(img_shape), transforms.ToTensor()])
 
 
-class OracleOmniglot(Dataset):
+class OracleDataset(Dataset):
     def __init__(self,
                  dataset,
                  datapath,
@@ -214,6 +216,7 @@ class OracleOmniglot(Dataset):
         self.n_support = n_support
         self.n_query = n_query
         self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
+        self.channels = 1 if dataset == "omniglot" else 3
         self.no_aug_support = no_aug_support
         self.no_aug_query = no_aug_query
 
@@ -223,23 +226,42 @@ class OracleOmniglot(Dataset):
         self.dataset = dataset
         self.targets = []
         self.data = []
+        if dataset == "omniglot":
+            dataset_func = Omniglot
+        elif dataset == "miniimagenet":
+            dataset_func = MiniImagenet
+        elif dataset == "tieredimagenet":
+            dataset_func = TieredImagenet
+        elif dataset == "cub":
+            dataset_func = CUB
+        elif dataset == "cifar_fs":
+            dataset_func = CIFARFS
+        elif dataset == "doublemnist":
+            dataset_func = DoubleMNIST
+        elif dataset == "triplemnist":
+            dataset_func = TripleMNIST
         kwargs = {
             'meta_train': split == 'train',
             'meta_val': split == 'val',
             'meta_test': split == 'test',
         }
-        ds = Omniglot(os.path.join(datapath, dataset),
-                      num_classes_per_task=train_oracle_ways,
-                      transform=Compose([transforms.Resize(28), ToTensor()]),
-                      target_transform=Categorical(num_classes=train_oracle_ways),
-                      use_vinyals_split=True, **kwargs)
+        ds = dataset_func(os.path.join(datapath, dataset),
+                          num_classes_per_task=train_oracle_ways,
+                          transform=Compose([transforms.Resize(self.img_size), ToTensor()]),
+                          target_transform=Categorical(num_classes=train_oracle_ways),
+                          download=True,
+                          **kwargs)
         ds = ClassSplitter(ds,
                            shuffle=True,
                            num_train_per_class=train_oracle_shots)
         self.dl = BatchMetaDataLoader(ds, batch_size=1, num_workers=0)
 
-        self.transform = get_omniglot_transform((28, 28))
-        self.original_transform = identity_transform((28, 28))
+        if dataset == 'omniglot':
+            self.transform = get_omniglot_transform((28, 28))
+            self.original_transform = identity_transform((28, 28))
+        else:
+            self.transform = get_custom_transform(self.img_size)
+            self.original_transform = identity_transform(self.img_size)
 
     def _get_ora_data(self, batches=800):
         data = []
@@ -274,14 +296,14 @@ class OracleOmniglot(Dataset):
         view_list = torch.cat(view_list)
         data = torch.cat([x, view_list])
         data = data.reshape(
-            [self.train_oracle_ways * self.train_oracle_shots, self.n_query + self.n_support, 1,
+            [self.train_oracle_ways * self.train_oracle_shots, self.n_query + self.n_support, self.channels,
              *self.img_size]).squeeze(0)
         out = dict(data=data, labels=y.repeat(self.n_query + self.n_support))
 
         return out
 
 
-class OracleOmniglotModule(pl.LightningDataModule):
+class OracleDataModule(pl.LightningDataModule):
     def __init__(self,
                  dataset,
                  datapath,
@@ -296,7 +318,7 @@ class OracleOmniglotModule(pl.LightningDataModule):
                  train_oracle_mode=False,
                  train_oracle_shots: int = None,
                  train_oracle_ways: int = None):
-        super(OracleOmniglotModule, self).__init__()
+        super(OracleDataModule, self).__init__()
         self.n_support = n_support
         self.n_query = n_query
         self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
@@ -315,12 +337,14 @@ class OracleOmniglotModule(pl.LightningDataModule):
         self.datapath = datapath
 
     def setup(self, stage: Optional[str] = None) -> None:
-        self.ds = OracleOmniglot("omniglot", "./data/untarred/", split='train',
-                                 train_oracle_mode=True,
-                                 n_support=self.n_support,
-                                 n_query=self.n_query,
-                                 train_oracle_shots=self.train_oracle_shots,
-                                 train_oracle_ways=self.train_oracle_ways)
+        self.ds = OracleDataset(self.dataset,
+                                self.datapath,
+                                split='train',
+                                train_oracle_mode=True,
+                                n_support=self.n_support,
+                                n_query=self.n_query,
+                                train_oracle_shots=self.train_oracle_shots,
+                                train_oracle_ways=self.train_oracle_ways)
 
     def train_dataloader(self):
         train_dl = DataLoader(
@@ -400,30 +424,13 @@ class UnlabelledDataset(Dataset):
         self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
         self.no_aug_support = no_aug_support
         self.no_aug_query = no_aug_query
-
         self.train_oracle_mode = train_oracle_mode
-        self.train_oracle_ways = train_oracle_ways
-        self.train_oracle_shots = train_oracle_shots
-
-        if train_oracle_ways is not None and train_oracle_shots is not None and train_oracle_mode is True:
-            dataset = omniglot(os.path.join(datapath, dataset),
-                               ways=train_oracle_ways,
-                               shots=train_oracle_shots,
-                               use_vinyals_split=True,
-                               meta_train=True,
-                               download=True)
-            self.ora_dataloader = BatchMetaDataLoader(dataset, batch_size=1, num_workers=0)
-            self.data, self.targets = self._get_ora_data(800)
-
-            del self.ora_dataloader
-            del dataset
-        else:
-            # Get the data or paths
-            self.dataset = dataset
-            self.targets = []
-            self.data = self._extract_data_from_hdf5(
-                dataset, datapath, split, n_classes, seed
-            )
+        # Get the data or paths
+        self.dataset = dataset
+        self.targets = []
+        self.data = self._extract_data_from_hdf5(
+            dataset, datapath, split, n_classes, seed
+        )
 
         # Optionally only load a subset of images
         if n_images is not None:
@@ -451,20 +458,6 @@ class UnlabelledDataset(Dataset):
                 self.transform = get_custom_transform(self.img_size)
                 self.original_transform = identity_transform(self.img_size)
 
-    def _get_ora_data(self, batches=1000):
-        data = []
-        targets = []
-        cntr = 0
-        for b in iter(self.ora_dataloader):
-            if cntr > batches:
-                break
-            else:
-                cntr += 1
-            d, t = b["train"]
-            data.append(d.squeeze(0))
-            targets.append(t)
-        return np.concatenate(data), np.concatenate(targets).flatten()
-
     def _extract_data_from_hdf5(self, dataset, datapath, split, n_classes, seed):
         datapath = os.path.join(datapath, dataset)
         targets = []
@@ -486,7 +479,10 @@ class UnlabelledDataset(Dataset):
         else:
             with h5py.File(os.path.join(datapath, split + "_data.hdf5"), "r") as f:
                 datasets = f["datasets"]
-                classes = [datasets[k][()] for k in datasets.keys()]
+                class_names = list(datasets.keys())
+                classes = [datasets[k][()] for k in class_names]
+            targets = LabelEncoder().fit_transform(class_names)
+            self.targets = np.concatenate([targets]).repeat(600)
 
         # Optionally filter out some classes)
         if n_classes is not None:
@@ -633,8 +629,8 @@ class UnlabelledDataModule(pl.LightningDataModule):
                 no_aug_support=self.no_aug_support,
                 no_aug_query=self.no_aug_query,
                 train_oracle_mode=self.train_oracle_mode,
-                train_oracle_ways=self.eval_ways,
-                train_oracle_shots=self.eval_support_shots,
+                train_oracle_ways=self.train_oracle_ways,
+                train_oracle_shots=self.train_oracle_shots,
             )
 
             self.dataset_train = ConcatDataset([self.dataset_train, dataset_val])
