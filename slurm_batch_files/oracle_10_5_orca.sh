@@ -45,11 +45,12 @@ srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
 	--eval-ways=5 \
-	--eval_support_shots=5\
+	--eval_support_shots=5 \
 	--distance='euclidean' \
 	--tau=1.0 \
 	--logging='wandb' \
 	--clustering_alg="None" \
+	--cl_reduction="mean" \
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
