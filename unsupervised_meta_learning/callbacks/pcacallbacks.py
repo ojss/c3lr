@@ -35,7 +35,7 @@ class PCACallbackOnTrain(pl.Callback):
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
             )
-            if pl_module.oracle_mode:
+            if pl_module.train_oracle_mode:
                 labels = batch['labels']
                 y_support = labels[:, 0]
                 y_query = labels[:, 1:].flatten()
