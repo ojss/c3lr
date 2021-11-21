@@ -195,8 +195,12 @@ def cluster_diff_loss(
         loss = F.cross_entropy(-dists, labels.unsqueeze(0))
 
     else:
-        dists = torch.cdist(x1=z, x2=z, p=2.)
-        loss = F.cross_entropy(-dists, labels.unsqueeze(0))
+        for label in labels.unique().tolist():
+            tmp = z_labels[z_labels[:, -1] == label][:, :-1]
+            dists = torch.pdist(tmp, p=2.)
+            loss += F.cross_entropy(-dists.unsqueeze(0), torch.full_like(dists, label).unsqueeze(0))
+        loss /= len(labels.unique())
+        loss *= .02
 
     return loss
 

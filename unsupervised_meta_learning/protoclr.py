@@ -228,7 +228,6 @@ class ProtoCLR(pl.LightningModule):
             if self.clustering_algo == "kmeans":
                 clf, predicted_labels, _ = clusterer(reduced_z, algo="kmeans")
                 pred_query_labels = predicted_labels[ways * self.n_support:]
-                pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
                 loss = cluster_diff_loss(
                     z_query,
                     pred_query_labels,
