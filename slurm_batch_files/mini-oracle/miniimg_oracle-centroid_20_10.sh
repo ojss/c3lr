@@ -11,7 +11,7 @@
 #SBATCH --qos=short
 
 # The default run (wall-clock) time iscentroid_20_5 1 minute
-#SBATCH --time=03:15:00
+#SBATCH --time=04:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
