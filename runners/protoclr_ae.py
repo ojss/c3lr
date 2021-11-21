@@ -151,6 +151,8 @@ def protoclr_ae(
                 "cl_reduction": cl_reduction,
                 "clustering_on_latent": cluster_on_latent,
                 "oracle_mode": train_oracle_mode,
+                "train_oracle_ways": train_oracle_ways,
+                "train_oracle_shots": train_oracle_shots,
                 "use_entropy": use_entropy,
                 "timestamp": str(datetime.now()),
             },
