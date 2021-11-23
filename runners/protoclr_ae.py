@@ -1,6 +1,7 @@
 __all__ = ["protoclr_ae"]
 
 import os
+import pdb
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -15,118 +16,105 @@ from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
-    UnlabelledDataset, OracleDataModule
+    UnlabelledDataset,
+    OracleDataModule,
 )
 from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini
 from unsupervised_meta_learning.protoclr import ProtoCLR
+from unsupervised_meta_learning.dataclasses.protoclr_container import (
+    PCLRParamsContainer,
+)
 
 
 def protoclr_ae(
+    dataset,
+    datapath,
+    lr=1e-3,
+    inner_lr=1e-3,
+    gamma=1.0,
+    distance="euclidean",
+    ckpt_dir=Path("./ckpts"),
+    ae=False,
+    tau=1.0,
+    eval_ways=5,
+    clustering_alg=None,
+    cl_reduction=None,
+    cluster_on_latent=False,
+    eval_support_shots=1,
+    eval_query_shots=15,
+    n_images=None,
+    n_classes=None,
+    n_support=1,
+    n_query=3,
+    batch_size=50,
+    no_aug_support=False,
+    no_aug_query=False,
+    logging="wandb",
+    log_images=False,
+    profiler="torch",
+    train_oracle_mode=False,
+    train_oracle_ways=None,
+    train_oracle_shots=None,
+    num_workers=0,
+    callbacks=True,
+    patience=200,
+    use_plotly=True,
+    use_entropy=False,
+    uuid=None, #comes from OS should be constant mostly
+):
+    params = PCLRParamsContainer(
         dataset,
         datapath,
-        lr=1e-3,
-        inner_lr=1e-3,
-        gamma=1.0,
-        distance="euclidean",
+        lr=lr,
+        inner_lr=inner_lr,
+        gamma=gamma,
+        distance=distance,
         ckpt_dir=Path("./ckpts"),
-        ae=False,
-        tau=1.,
-        eval_ways=5,
-        clustering_alg=None,
-        cl_reduction=None,
-        cluster_on_latent=False,
-        eval_support_shots=1,
-        eval_query_shots=15,
-        n_images=None,
-        n_classes=None,
-        n_support=1,
-        n_query=3,
-        batch_size=50,
-        no_aug_support=False,
-        no_aug_query=False,
-        logging="wandb",
-        log_images=False,
-        profiler="torch",
-        train_oracle_mode=False,
-        train_oracle_ways=None,
-        train_oracle_shots=None,
-        num_workers=0,
-        callbacks=True,
-        patience=200,
-        use_plotly=True,
-        use_entropy=False,
-        uuid=None, #comes from OS should be constant mostly
-        tuner_mode=False,
-        
-):
-    if tuner_mode is True:
-        os.environ["SLURM_JOB_NAME"] = "bash"
-        del os.environ["SLURM_NTASKS"]
-        del os.environ["SLURM_JOB_NAME"]
-    if train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None:
+        ae=ae,
+        tau=tau,
+        clustering_algo=clustering_alg,
+        cl_reduction=cl_reduction,
+        eval_ways=eval_ways,
+        eval_support_shots=eval_support_shots,
+        eval_query_shots=eval_query_shots,
+        n_images=n_images,
+        n_classes=n_classes,
+        n_support=n_support,
+        n_query=n_query,
+        batch_size=batch_size,
+        no_aug_support=no_aug_support,
+        no_aug_query=no_aug_query,
+        log_images=log_images,
+        train_oracle_mode=train_oracle_mode,
+        train_oracle_ways=train_oracle_ways,
+        train_oracle_shots=train_oracle_shots,
+        num_workers=num_workers,
+        use_entropy=use_entropy,
+    )
+ 
+    if (
+        train_oracle_mode is True
+        and train_oracle_ways is not None
+        and train_oracle_shots is not None
+    ):
         dm = OracleDataModule(
             dataset,
             datapath,
             n_support=n_support,
             n_query=n_query,
             batch_size=1,
-            num_workers=2,
-            eval_ways=5,
-            eval_support_shots=5,
-            eval_query_shots=15,
-            train_oracle_mode=train_oracle_mode,
-            train_oracle_shots=train_oracle_shots,
-            train_oracle_ways=train_oracle_ways
-        )
-    else:
-        dm = UnlabelledDataModule(
-            dataset,
-            datapath,
-            transform=None,
-            n_support=n_support,
-            n_query=n_query,
-            n_images=n_images,
-            n_classes=n_classes,
-            no_aug_support=no_aug_support,
-            no_aug_query=no_aug_query,
-            batch_size=batch_size,
-            seed=10,
-            mode="trainval",
-            num_workers=num_workers,
+            num_workers=params.num_workers,
             eval_ways=eval_ways,
             eval_support_shots=eval_support_shots,
             eval_query_shots=eval_query_shots,
             train_oracle_mode=train_oracle_mode,
+            train_oracle_shots=train_oracle_shots,
+            train_oracle_ways=train_oracle_ways,
         )
+    else:
+        dm = UnlabelledDataModule(params)
 
-    if dataset == "omniglot":
-        decoder_class = Decoder4L
-        num_input_channels = 1
-    elif dataset == "miniimagenet":
-        decoder_class = Decoder4L4Mini
-        num_input_channels = 3
-    model = ProtoCLR(
-        n_support=n_support,
-        n_query=n_query,
-        batch_size=batch_size,
-        gamma=gamma,
-        lr=lr,
-        inner_lr=inner_lr,
-        lr_decay_step=25000,
-        lr_decay_rate=0.5,
-        decoder_class=decoder_class,
-        num_input_channels=num_input_channels,
-        distance=distance,
-        tau=tau,
-        ae=ae,
-        clustering_algo=clustering_alg,
-        cl_reduction=cl_reduction,
-        log_images=log_images,
-        train_oracle_mode=train_oracle_mode,
-        train_oracle_ways=train_oracle_ways,
-        train_oracle_shots=train_oracle_shots,
-        use_entropy=use_entropy
-    )
+    model = ProtoCLR(params)
 
     cbs = []
 
@@ -134,7 +122,7 @@ def protoclr_ae(
         logger = WandbLogger(
             project="ProtoCLR+AE",
             config={
-                "batch_size": 50,
+                "batch_size": batch_size,
                 "n_classes": n_classes,
                 "steps": 100,
                 "lr": lr,
@@ -170,11 +158,17 @@ def protoclr_ae(
             ]
             if ae:
                 dataset_train = UnlabelledDataset(
-                    dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
+                    dataset=dataset,
+                    datapath=datapath,
+                    split="train",
+                    n_support=1,
+                    n_query=3,
                 )
                 cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
         elif patience is not None:
-            cbs = [EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02)]
+            cbs = [
+                EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02)
+            ]
         # should be there no matter what?
         cbs.append(ConfidenceIntervalCallback())
 

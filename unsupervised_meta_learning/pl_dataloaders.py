@@ -14,7 +14,7 @@ __all__ = [
     "OmniglotDataModule",
     "MiniImagenetDataModule",
     "OracleDataset",
-    "OracleDataModule"
+    "OracleDataModule",
 ]
 
 # Cell
@@ -34,14 +34,32 @@ from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
-from torchmeta.datasets import Omniglot, MiniImagenet, CUB, CIFARFS, TieredImagenet, TripleMNIST, DoubleMNIST
-from torchmeta.datasets.helpers import (cifar_fs, cub, doublemnist,
-                                        miniimagenet, omniglot, tieredimagenet,
-                                        triplemnist)
+from torchmeta.datasets import (
+    Omniglot,
+    MiniImagenet,
+    CUB,
+    CIFARFS,
+    TieredImagenet,
+    TripleMNIST,
+    DoubleMNIST,
+)
+from torchmeta.datasets.helpers import (
+    cifar_fs,
+    cub,
+    doublemnist,
+    miniimagenet,
+    omniglot,
+    tieredimagenet,
+    triplemnist,
+)
 from torchmeta.transforms import Categorical, ClassSplitter
 from torchmeta.utils.data import BatchMetaDataLoader, MetaDataLoader
 from torchvision import transforms
 from torchvision.transforms import Compose, ToTensor
+
+from unsupervised_meta_learning.dataclasses.protoclr_container import (
+    PCLRParamsContainer,
+)
 
 
 # Cell
@@ -64,16 +82,16 @@ def collate_task_batch(batch):
 
 # Cell
 def get_episode_loader(
-        dataset,
-        datapath,
-        ways,
-        shots,
-        test_shots,
-        batch_size,
-        split,
-        download=True,
-        shuffle=True,
-        num_workers=0,
+    dataset,
+    datapath,
+    ways,
+    shots,
+    test_shots,
+    batch_size,
+    split,
+    download=True,
+    shuffle=True,
+    num_workers=0,
 ):
     """Create an episode data loader for a torchmeta dataset. Can also
     include unlabelled data for semi-supervised learning.
@@ -202,17 +220,19 @@ def identity_transform(img_shape):
 
 
 class OracleDataset(Dataset):
-    def __init__(self,
-                 dataset,
-                 datapath,
-                 split='train',
-                 n_support=1,
-                 n_query=3,
-                 no_aug_support=False,
-                 no_aug_query=False,
-                 train_oracle_mode=False,
-                 train_oracle_shots: int = None,
-                 train_oracle_ways: int = None, ):
+    def __init__(
+        self,
+        dataset,
+        datapath,
+        split="train",
+        n_support=1,
+        n_query=3,
+        no_aug_support=False,
+        no_aug_query=False,
+        train_oracle_mode=False,
+        train_oracle_shots: int = None,
+        train_oracle_ways: int = None,
+    ):
         self.n_support = n_support
         self.n_query = n_query
         self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
@@ -241,22 +261,22 @@ class OracleDataset(Dataset):
         elif dataset == "triplemnist":
             dataset_func = TripleMNIST
         kwargs = {
-            'meta_train': split == 'train',
-            'meta_val': split == 'val',
-            'meta_test': split == 'test',
+            "meta_train": split == "train",
+            "meta_val": split == "val",
+            "meta_test": split == "test",
         }
-        ds = dataset_func(os.path.join(datapath, dataset),
-                          num_classes_per_task=train_oracle_ways,
-                          transform=Compose([transforms.Resize(self.img_size), ToTensor()]),
-                          target_transform=Categorical(num_classes=train_oracle_ways),
-                          download=True,
-                          **kwargs)
-        ds = ClassSplitter(ds,
-                           shuffle=True,
-                           num_train_per_class=train_oracle_shots)
+        ds = dataset_func(
+            os.path.join(datapath, dataset),
+            num_classes_per_task=train_oracle_ways,
+            transform=Compose([transforms.Resize(self.img_size), ToTensor()]),
+            target_transform=Categorical(num_classes=train_oracle_ways),
+            download=True,
+            **kwargs
+        )
+        ds = ClassSplitter(ds, shuffle=True, num_train_per_class=train_oracle_shots)
         self.dl = BatchMetaDataLoader(ds, batch_size=1, num_workers=0)
 
-        if dataset == 'omniglot':
+        if dataset == "omniglot":
             self.transform = get_omniglot_transform((28, 28))
             self.original_transform = identity_transform((28, 28))
         else:
@@ -282,12 +302,11 @@ class OracleDataset(Dataset):
 
     def __getitem__(self, index):
         dl_iter = iter(self.dl)
-        x, y = next(dl_iter)['train']
+        x, y = next(dl_iter)["train"]
         x: torch.Tensor = x.squeeze(0)
         y: torch.Tensor = y.squeeze(0)
 
-        xt = list(
-            map(lambda z: transforms.ToPILImage()(z), x))
+        xt = list(map(lambda z: transforms.ToPILImage()(z), x))
 
         view_list = []
         for image in xt:
@@ -296,28 +315,35 @@ class OracleDataset(Dataset):
         view_list = torch.cat(view_list)
         data = torch.cat([x, view_list])
         data = data.reshape(
-            [self.train_oracle_ways * self.train_oracle_shots, self.n_query + self.n_support, self.channels,
-             *self.img_size]).squeeze(0)
+            [
+                self.train_oracle_ways * self.train_oracle_shots,
+                self.n_query + self.n_support,
+                self.channels,
+                *self.img_size,
+            ]
+        ).squeeze(0)
         out = dict(data=data, labels=y.repeat(self.n_query + self.n_support))
 
         return out
 
 
 class OracleDataModule(pl.LightningDataModule):
-    def __init__(self,
-                 dataset,
-                 datapath,
-                 split='train',
-                 n_support=1,
-                 n_query=3,
-                 batch_size=1,
-                 eval_ways=5,
-                 eval_support_shots=5,
-                 eval_query_shots=15,
-                 num_workers=2,
-                 train_oracle_mode=False,
-                 train_oracle_shots: int = None,
-                 train_oracle_ways: int = None):
+    def __init__(
+        self,
+        dataset,
+        datapath,
+        split="train",
+        n_support=1,
+        n_query=3,
+        batch_size=1,
+        eval_ways=5,
+        eval_support_shots=5,
+        eval_query_shots=15,
+        num_workers=2,
+        train_oracle_mode=False,
+        train_oracle_shots: int = None,
+        train_oracle_ways: int = None,
+    ):
         super(OracleDataModule, self).__init__()
         self.n_support = n_support
         self.n_query = n_query
@@ -337,14 +363,16 @@ class OracleDataModule(pl.LightningDataModule):
         self.datapath = datapath
 
     def setup(self, stage: Optional[str] = None) -> None:
-        self.ds = OracleDataset(self.dataset,
-                                self.datapath,
-                                split='train',
-                                train_oracle_mode=True,
-                                n_support=self.n_support,
-                                n_query=self.n_query,
-                                train_oracle_shots=self.train_oracle_shots,
-                                train_oracle_ways=self.train_oracle_ways)
+        self.ds = OracleDataset(
+            self.dataset,
+            self.datapath,
+            split="train",
+            train_oracle_mode=True,
+            n_support=self.n_support,
+            n_query=self.n_query,
+            train_oracle_shots=self.train_oracle_shots,
+            train_oracle_ways=self.train_oracle_ways,
+        )
 
     def train_dataloader(self):
         train_dl = DataLoader(
@@ -366,7 +394,7 @@ class OracleDataModule(pl.LightningDataModule):
             test_shots=self.eval_query_shots,
             batch_size=1,
             split="val",
-            shuffle=False
+            shuffle=False,
         )
         return dataloader_val
 
@@ -380,7 +408,7 @@ class OracleDataModule(pl.LightningDataModule):
             test_shots=self.eval_query_shots,
             batch_size=1,
             split="test",
-            shuffle=False
+            shuffle=False,
         )
         return dataloader_test
 
@@ -388,21 +416,21 @@ class OracleDataModule(pl.LightningDataModule):
 # Cell
 class UnlabelledDataset(Dataset):
     def __init__(
-            self,
-            dataset,
-            datapath,
-            split,
-            transform=None,
-            n_support=1,
-            n_query=1,
-            n_images=None,
-            n_classes=None,
-            seed=10,
-            no_aug_support=False,
-            no_aug_query=False,
-            train_oracle_mode=False,
-            train_oracle_shots: int = None,
-            train_oracle_ways: int = None,
+        self,
+        dataset,
+        datapath,
+        split,
+        transform=None,
+        n_support=1,
+        n_query=1,
+        n_images=None,
+        n_classes=None,
+        seed=10,
+        no_aug_support=False,
+        no_aug_query=False,
+        train_oracle_mode=False,
+        train_oracle_shots: int = None,
+        train_oracle_ways: int = None,
     ):
         """
         Args:
@@ -466,7 +494,7 @@ class UnlabelledDataset(Dataset):
             classes = []
             with h5py.File(os.path.join(datapath, "data.hdf5"), "r") as f_data:
                 with open(
-                        os.path.join(datapath, "vinyals_{}_labels.json".format(split))
+                    os.path.join(datapath, "vinyals_{}_labels.json".format(split))
                 ) as f_labels:
                     labels = json.load(f_labels)
                     for label in labels:
@@ -486,7 +514,9 @@ class UnlabelledDataset(Dataset):
 
         # Optionally filter out some classes)
         if n_classes is not None:
-            random_idxs = np.random.RandomState(seed).permutation(len(classes))[:n_classes]
+            random_idxs = np.random.RandomState(seed).permutation(len(classes))[
+                :n_classes
+            ]
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
@@ -545,58 +575,35 @@ class UnlabelledDataset(Dataset):
 
 
 class UnlabelledDataModule(pl.LightningDataModule):
-    def __init__(
-            self,
-            dataset,
-            datapath,
-            transform=None,
-            n_support=1,
-            n_query=1,
-            n_images=None,
-            n_classes=None,
-            batch_size=50,
-            num_workers=8,
-            seed=10,
-            no_aug_support=False,
-            no_aug_query=False,
-            merge_train_val=True,
-            mode="val",
-            eval_ways=5,
-            eval_support_shots=5,
-            eval_query_shots=15,
-            train_oracle_ways=None,
-            train_oracle_shots=None,
-            train_oracle_mode=False,
-            **kwargs
-    ):
+    def __init__(self, params: PCLRParamsContainer, **kwargs):
         super().__init__()
 
-        self.n_images = n_images
-        self.n_support = n_support
-        self.n_query = n_query
-        self.n_classes = n_classes
-        self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
-        self.no_aug_support = no_aug_support
-        self.no_aug_query = no_aug_query
+        self.n_images = params.n_images
+        self.n_support = params.n_support
+        self.n_query = params.n_query
+        self.n_classes = params.n_classes
+        self.img_size = (28, 28) if params.dataset == "omniglot" else (84, 84)
+        self.no_aug_support = params.no_aug_support
+        self.no_aug_query = params.no_aug_query
 
-        self.batch_size = batch_size
-        self.num_workers = num_workers
+        self.batch_size = params.batch_size
+        self.num_workers = params.num_workers
 
         # Get the data or paths
-        self.dataset = dataset
-        self.datapath = datapath
+        self.dataset = params.dataset
+        self.datapath = params.datapath
 
-        self.mode = mode
+        self.mode = params.mode
 
-        self.eval_ways = eval_ways
-        self.eval_support_shots = eval_support_shots
-        self.eval_query_shots = eval_query_shots
+        self.eval_ways = params.eval_ways
+        self.eval_support_shots = params.eval_support_shots
+        self.eval_query_shots = params.eval_query_shots
 
-        self.merge_train_val = merge_train_val
+        self.merge_train_val = params.merge_train_val
 
-        self.train_oracle_mode = train_oracle_mode
-        self.train_oracle_ways = train_oracle_ways
-        self.train_oracle_shots = train_oracle_shots
+        self.train_oracle_mode = params.train_oracle_mode
+        self.train_oracle_ways = params.train_oracle_ways
+        self.train_oracle_shots = params.train_oracle_shots
 
         self.kwargs = kwargs
 
@@ -677,17 +684,17 @@ class UnlabelledDataModule(pl.LightningDataModule):
 # Cell
 class OmniglotDataModule(pl.LightningDataModule):
     def __init__(
-            self,
-            data_dir: str,
-            shots: int,
-            ways: int,
-            shuffle_ds: bool,
-            test_shots: int,
-            meta_train: bool,
-            download: bool,
-            batch_size: str,
-            shuffle: bool,
-            num_workers: int,
+        self,
+        data_dir: str,
+        shots: int,
+        ways: int,
+        shuffle_ds: bool,
+        test_shots: int,
+        meta_train: bool,
+        download: bool,
+        batch_size: str,
+        shuffle: bool,
+        num_workers: int,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -752,17 +759,17 @@ class OmniglotDataModule(pl.LightningDataModule):
 # Cell
 class MiniImagenetDataModule(pl.LightningDataModule):
     def __init__(
-            self,
-            data_dir: str,
-            shots: int,
-            ways: int,
-            shuffle_ds: bool,
-            test_shots: int,
-            meta_train: bool,
-            download: bool,
-            batch_size: str,
-            shuffle: bool,
-            num_workers: int,
+        self,
+        data_dir: str,
+        shots: int,
+        ways: int,
+        shuffle_ds: bool,
+        test_shots: int,
+        meta_train: bool,
+        download: bool,
+        batch_size: str,
+        shuffle: bool,
+        num_workers: int,
     ):
         self.data_dir = data_dir
         self.shots = shots

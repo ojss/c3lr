@@ -19,6 +19,8 @@ from sklearn.preprocessing import LabelEncoder
 from torch.autograd import Variable
 from tqdm.auto import tqdm
 
+from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
+
 from .proto_utils import (AttnEncoder4L, Decoder4L, Encoder4L, cluster_diff_loss,
                           clusterer, get_prototypes, prototypical_loss)
 
@@ -58,87 +60,56 @@ class Classifier(nn.Module):
 class ProtoCLR(pl.LightningModule):
     def __init__(
             self,
-            n_support,
-            n_query,
-            batch_size,
-            lr_decay_step,
-            lr_decay_rate,
-            dataset="omniglot",
-            num_input_channels=1,
-            base_channel_size=64,
-            latent_dim=64,
-            encoder_class=Encoder4L,
-            decoder_class=Decoder4L,
-            classifier=None,
-            gamma=5.0,
-            lr=1e-3,
-            inner_lr=1e-3,
-            ae=False,
-            distance="euclidean",
-            tau=0.5,
-            mode="trainval",
-            eval_ways=5,
-            clustering_algo=None,
-            cl_reduction='mean',
-            sup_finetune=True,
-            sup_finetune_lr=1e-3,
-            sup_finetune_epochs=15,
-            ft_freeze_backbone=True,
-            finetune_batch_norm=False,
-            log_images=True,
-            train_oracle_mode=False,
-            train_oracle_ways=None,
-            train_oracle_shots=None,
-            use_entropy=False,
+            params: PCLRParamsContainer
     ):
         super().__init__()
 
-        self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim)
+        self.encoder = params.encoder_class(params.num_input_channels, params.base_channel_size, params.latent_dim)
 
-        self.clustering_algo = clustering_algo
-        self.cl_reduction = cl_reduction
+        self.clustering_algo = params.clustering_algo
+        self.cl_reduction = params.cl_reduction
 
-        self.ae = ae
+        self.ae = params.ae
         if self.ae == True:
-            self.decoder = decoder_class(
-                num_input_channels, base_channel_size, latent_dim
+            self.decoder = params.decoder_class(
+                params.num_input_channels, params.base_channel_size, params.latent_dim
             )
         else:
             self.decoder = nn.Identity()
 
-        self.batch_size = batch_size
-        self.n_support = n_support
-        self.n_query = n_query
+        self.batch_size = params.batch_size
+        self.n_support = params.n_support
+        self.n_query = params.n_query
 
-        self.distance = distance
-        self.tau = tau
+        self.distance = params.distance
+        self.tau = params.tau
 
         # gamma will be used to weight the values of the MSE loss to potentially bring it up to par
         # gamma can also be adaptive in the future
-        self.gamma = gamma
-        self.lr = lr
-        self.lr_decay_rate = lr_decay_rate
-        self.lr_decay_step = lr_decay_step
-        self.inner_lr = inner_lr
+        self.gamma = params.gamma
+        self.lr = params.lr
+        self.lr_decay_rate = params.lr_decay_rate
+        self.lr_decay_step = params.lr_decay_step
+        self.inner_lr = params.inner_lr
 
-        self.mode = mode
-        self.eval_ways = eval_ways
-        self.sup_finetune = sup_finetune
-        self.sup_finetune_lr = sup_finetune_lr
-        self.sup_finetune_epochs = sup_finetune_epochs
-        self.ft_freeze_backbone = ft_freeze_backbone
-        self.finetune_batch_norm = finetune_batch_norm
+        self.mode =params. mode
+        self.eval_ways = params.eval_ways
+        self.sup_finetune = params.sup_finetune
+        self.sup_finetune_lr = params.sup_finetune_lr
+        self.sup_finetune_epochs = params.sup_finetune_epochs
+        self.ft_freeze_backbone = params.ft_freeze_backbone
+        self.finetune_batch_norm = params.finetune_batch_norm
 
-        self.log_images = log_images
-        self.train_oracle_mode = train_oracle_mode
-        self.train_oracle_ways = train_oracle_ways
-        self.train_oracle_shots = train_oracle_shots
-        if self.train_oracle_mode is True and train_oracle_ways is not None and train_oracle_shots is not None:
+        self.log_images = params.log_images
+        self.train_oracle_mode = params.train_oracle_mode
+        self.train_oracle_ways = params.train_oracle_ways
+        self.train_oracle_shots = params.train_oracle_shots
+        if self.train_oracle_mode is True and params.train_oracle_ways is not None and params.train_oracle_shots is not None:
             self.no_unsqueeze_flg = True
         else:
             self.no_unsqueeze_flg = False
 
-        self.use_entropy = use_entropy
+        self.use_entropy = params.use_entropy
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 

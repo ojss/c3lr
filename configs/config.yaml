@@ -17,6 +17,21 @@ defaults:
   # enable color logging
   - override hydra/hydra_logging: colorlog
   - override hydra/job_logging: colorlog
+  - override hydra/launcher: submitit_slurm
+
+# all slurm confs below
+
+hydra:
+  launcher:
+    cpus_per_task: 4
+    mem_gb: 16
+    tasks_per_node: 1
+    nodes: 1
+    partition: general
+    timeout_min: 60
+    additional_parameters:
+      qos: short
+    
 
 # path to original working directory
 # hydra hijacks working directory by changing it to the current log directory,
