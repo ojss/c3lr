@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 from pathlib import Path
 from torch import nn
 
@@ -9,11 +10,11 @@ from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini, En
 class PCLRParamsContainer:
     dataset: str
     datapath: str
-    transform = None
+    transform: Optional[list] = None
     n_support: int = 1
     n_query: int = 3
-    n_images: int = None
-    n_classes: int = None
+    n_images: Optional[int] = None
+    n_classes: Optional[int] = None
     batch_size: int = 50
     no_aug_support: bool = True
     no_aug_query: bool = False
@@ -31,7 +32,7 @@ class PCLRParamsContainer:
     lr_decay_rate: float = 0.5
     encoder_class: nn.Module = Encoder4L
     decoder_class: nn.Module = nn.Identity
-    classifie: nn.Module = None
+    classifier: Optional[nn.Module] = None
     num_input_channels: int = 1
     base_channel_size: int = 64
     latent_dim: int = 64
@@ -39,7 +40,7 @@ class PCLRParamsContainer:
     ckpt_dir: Path = Path("./ckpts")
     tau: float = 1.0
     ae: bool = False
-    clustering_algo: str = None
+    clustering_algo: Optional[str] = None
     cl_reduction: str = "mean"
     log_images: bool = False
     sup_finetune: bool = True
@@ -48,8 +49,8 @@ class PCLRParamsContainer:
     ft_freeze_backbone: bool = True
     finetune_batch_norm: bool = False
     train_oracle_mode: bool = False
-    train_oracle_ways: int = None
-    train_oracle_shots: int = None
+    train_oracle_ways: Optional[int] = None
+    train_oracle_shots: Optional[int] = None
     use_entropy: bool = False
 
     def __post_init__(self):

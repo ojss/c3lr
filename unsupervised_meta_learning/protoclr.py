@@ -63,7 +63,7 @@ class ProtoCLR(pl.LightningModule):
             params: PCLRParamsContainer
     ):
         super().__init__()
-
+        breakpoint()
         self.encoder = params.encoder_class(params.num_input_channels, params.base_channel_size, params.latent_dim)
 
         self.clustering_algo = params.clustering_algo
