@@ -30,6 +30,8 @@
 # 90 seconds before training ends, to help create a checkpoint and requeue the job
 #SBATCH --signal=SIGUSR1@90
 
+rnd_uuid=$(uuidgen)
+
 module use /opt/insy/modulefiles
 
 module load cuda/11.1 cudnn/11.1-8.0.5.39
@@ -59,4 +61,5 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--train_oracle_shots=20 \
 	--callbacks=False \
 	--patience=200 \
-	--no_aug_support=True
+	--no_aug_support=True \
+	--uuid=$rnd_uuid

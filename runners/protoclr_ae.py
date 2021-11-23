@@ -55,7 +55,9 @@ def protoclr_ae(
         patience=200,
         use_plotly=True,
         use_entropy=False,
+        uuid=None, #comes from OS should be constant mostly
         tuner_mode=False,
+        
 ):
     if tuner_mode is True:
         os.environ["SLURM_JOB_NAME"] = "bash"
@@ -187,10 +189,10 @@ def protoclr_ae(
             else []
         )
 
-    ckpt_path = (
-            ckpt_dir
-            / f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
+    ckpt_path = os.path.join(
+            ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
     )
+    breakpoint()
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",
         mode="max",
@@ -220,7 +222,7 @@ def protoclr_ae(
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=2,
-        weights_save_path=ckpt_path / "others",
+        weights_save_path=os.path.join(ckpt_dir, "hpc_saves", uuid),
         gpus=gpus,
         logger=logger,
     )
