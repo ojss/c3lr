@@ -192,7 +192,7 @@ def protoclr_ae(
     ckpt_path = os.path.join(
             ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
     )
-    breakpoint()
+
     ckpt_callback = ModelCheckpoint(
         monitor="val_accuracy",
         mode="max",
