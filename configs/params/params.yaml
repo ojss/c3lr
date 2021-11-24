@@ -1,0 +1,44 @@
+_target_: unsupervised_meta_learning.dataclasses.protoclr_container.PCLRParamsContainer
+
+
+dataset: ${dataset}
+datapath: ${data_dir}
+
+n_support: 1
+n_query: 3
+
+batch_size: 50
+no_aug_support: True
+no_aug_query: False
+seed: 42
+mode: trainval
+merge_train_val: True
+num_workers: 2
+eval_ways: 5
+eval_support_shots: 5
+eval_query_shots: 15
+gamma: 1e-3
+lr: 1e-3
+inner_lr: 1e-3
+lr_decay_step: 25000
+lr_decay_rate: 0.5
+
+num_input_channels: ${n_in_channels}
+base_channel_size: 64
+latent_dim: 64
+distance: euclidean
+ckpt_dir: ckpts
+tau: 1.0
+ae: False
+clustering_algo: null
+cl_reduction: mean
+log_images: False
+sup_finetune: True
+sup_finetune_lr: 1e-3
+sup_finetune_epochs: 15
+ft_freeze_backbone: True
+finetune_batch_norm: False
+train_oracle_mode: ${oracle_mode}
+train_oracle_ways: 5
+train_oracle_shots: 5
+use_entropy: False

@@ -12,7 +12,7 @@ from pytorch_lightning.profiler import PyTorchProfiler
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
     get_episode_loader,
-    UnlabelledDataset, OracleOmniglotModule
+    UnlabelledDataset, OracleDataModule
 )
 from unsupervised_meta_learning.proto_utils import (
     CAE,
@@ -31,48 +31,28 @@ from unsupervised_meta_learning.callbacks.pcacallbacks import *
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 
 from unsupervised_meta_learning.protoclr import ProtoCLR
+from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 
 profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
-# dm = UnlabelledDataModule(
-#     "omniglot",
-#     "./data/untarred",
-#     transform=None,
-#     n_support=1,
-#     n_query=3,
-#     n_images=None,
-#     n_classes=10,
-#     batch_size=50,
-#     seed=10,
-#     mode="trainval",
-#     num_workers=0,
-#     eval_ways=5,
-#     eval_support_shots=5,
-#     eval_query_shots=15,
-#     train_oracle_mode=False,
-#     train_oracle_shots=5,
-#     train_oracle_ways=10
-# )
-
-dm = OracleOmniglotModule(
-        "omniglot",
-        "./data/untarred",
-        n_support=1,
-        n_query=3,
-        batch_size=1,
-        num_workers=2,
-        eval_ways=5,
-        eval_support_shots=5,
-        eval_query_shots=15,
-        train_oracle_mode=True,
-        train_oracle_shots=5,
-        train_oracle_ways=10
-)
-
-model = ProtoCLR(
+params = PCLRParamsContainer(
+    "omniglot",
+    "./data/untarred",
+    transform=None,
     n_support=1,
     n_query=3,
+    n_images=None,
+    n_classes=None,
     batch_size=50,
+    seed=10,
+    mode="trainval",
+    num_workers=0,
+    eval_ways=5,
+    eval_support_shots=5,
+    eval_query_shots=15,
+    train_oracle_mode=True,
+    train_oracle_shots=5,
+    train_oracle_ways=20,
     distance="euclidean",
     tau=0.5,
     num_input_channels=1,
@@ -80,15 +60,19 @@ model = ProtoCLR(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    cl_reduction=None,
+    cl_reduction="mean",
     ae=False,
     gamma=.001,
     log_images=True,
-    train_oracle_mode=True,
-    train_oracle_shots=5,
-    train_oracle_ways=10,
     use_entropy=False
+
 )
+
+# dm = UnlabelledDataModule(params)
+
+dm = OracleDataModule(params)
+
+model = ProtoCLR(params)
 
 logger = WandbLogger(
     project="ProtoCLR+AE",
@@ -99,7 +83,7 @@ trainer = pl.Trainer(
     profiler="simple",
     max_epochs=2,
     limit_train_batches=100,
-    fast_dev_run=False,
+    fast_dev_run=True,
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[

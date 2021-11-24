@@ -97,20 +97,7 @@ def protoclr_ae(
         and train_oracle_ways is not None
         and train_oracle_shots is not None
     ):
-        dm = OracleDataModule(
-            dataset,
-            datapath,
-            n_support=n_support,
-            n_query=n_query,
-            batch_size=1,
-            num_workers=params.num_workers,
-            eval_ways=eval_ways,
-            eval_support_shots=eval_support_shots,
-            eval_query_shots=eval_query_shots,
-            train_oracle_mode=train_oracle_mode,
-            train_oracle_shots=train_oracle_shots,
-            train_oracle_ways=train_oracle_ways,
-        )
+        dm = OracleDataModule(params)
     else:
         dm = UnlabelledDataModule(params)
 

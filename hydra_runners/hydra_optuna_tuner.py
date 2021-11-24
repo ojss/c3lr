@@ -6,13 +6,16 @@ import os
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
+import torch
 from torch.utils.data import dataset
 
 from unsupervised_meta_learning.protoclr import ProtoCLR
 from unsupervised_meta_learning.proto_utils import Decoder4L, AttnEncoder4L, Encoder4L
 from unsupervised_meta_learning.pl_dataloaders import UnlabelledDataModule
 
+import logging
 
+log = logging.getLogger(__name__)
 
 @hydra.main(config_path="configs/", config_name="config.yaml")
 def main(config: DictConfig):
@@ -23,7 +26,7 @@ def main(config: DictConfig):
 def train_protoclr_ae(
     config
 ):
-    print(config)
+    log.info(config)
     try:
         os.environ["SLURM_JOB_NAME"] = "bash"
         del os.environ["SLURM_NTASKS"]
@@ -32,10 +35,10 @@ def train_protoclr_ae(
         pass
     ckpt_dir = Path("./ckpts")
 
-    print(f"Instantiating datamodule <{config.datamodule._target_}>")
-    dm: UnlabelledDataModule = hydra.utils.instantiate(config.datamodule)
+    log.info(f"Instantiating datamodule <{config.datamodule._target_}>")
+    dm: pl.LightningDataModule = hydra.utils.instantiate(config.datamodule)
     # Init lightning model
-    print(f"Instantiating model <{config.model._target_}>")
+    log.info(f"Instantiating model <{config.model._target_}>")
     model = hydra.utils.instantiate(config.model)
     
     # Init lightning loggers
@@ -43,9 +46,9 @@ def train_protoclr_ae(
     if "logger" in config:
         for _, lg_conf in config.logger.items():
             if "_target_" in lg_conf:
-                print(f"Instantiating logger <{lg_conf._target_}>")
+                log.info(f"Instantiating logger <{lg_conf._target_}>")
                 logger.append(hydra.utils.instantiate(lg_conf))
-    print(f"Instantiating trainer <{config.trainer._target_}>")
+    log.info(f"Instantiating trainer <{config.trainer._target_}>")
     trainer: pl.Trainer = hydra.utils.instantiate(
         config.trainer, 
         # callbacks=callbacks,
@@ -61,17 +64,18 @@ def train_protoclr_ae(
         callbacks=[],
         logger=logger
     )
-    print("Starting training!")
+    log.info("Starting training!")
     trainer.fit(model, datamodule=dm)
 
      # Get metric score for hyperparameter optimization
     score = trainer.callback_metrics.get(config.get("optimized_metric"))
+    log.info(f"GOT SCORE!!!!!!!!: {score.item()}")
     # Test the model
     if config.get("test_after_training") and not config.trainer.get("fast_dev_run"):
-        print("Starting testing!")
+        logging.info("Starting testing!")
         trainer.test(model=model, datamodule=dm, ckpt_path="best")
 
-    print("Finalizing!")
+    log.info("Finalizing!")
     finish(
         config=config,
         model=model,
@@ -80,6 +84,7 @@ def train_protoclr_ae(
         callbacks=[],
         logger=logger,
     )
+    log.info("Finished")
     return score
 
 

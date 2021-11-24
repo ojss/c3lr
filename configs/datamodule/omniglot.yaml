@@ -1,14 +1,3 @@
 _target_: unsupervised_meta_learning.pl_dataloaders.UnlabelledDataModule
 
-dataset: omniglot
-datapath: ${data_dir} # data_dir is specified in config.yaml
-batch_size: 50
-num_workers: 2
-eval_ways: 5
-eval_support_shots: 5
-eval_query_shots: 15
-n_support: 1
-n_query: 3
-seed: 10
-mode: "trainval"
-train_oracle_mode: False
+params: ${params}

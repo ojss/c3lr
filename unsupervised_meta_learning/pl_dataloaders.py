@@ -330,37 +330,25 @@ class OracleDataset(Dataset):
 class OracleDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        dataset,
-        datapath,
-        split="train",
-        n_support=1,
-        n_query=3,
-        batch_size=1,
-        eval_ways=5,
-        eval_support_shots=5,
-        eval_query_shots=15,
-        num_workers=2,
-        train_oracle_mode=False,
-        train_oracle_shots: int = None,
-        train_oracle_ways: int = None,
+        params: PCLRParamsContainer
     ):
         super(OracleDataModule, self).__init__()
-        self.n_support = n_support
-        self.n_query = n_query
-        self.img_size = (28, 28) if dataset == "omniglot" else (84, 84)
+        self.n_support = params.n_support
+        self.n_query = params.n_query
+        self.img_size = (28, 28) if params.dataset == "omniglot" else (84, 84)
 
-        self.batch_size = batch_size
-        self.num_workers = num_workers
+        self.batch_size = 1 #TODO: check if this remains to be hardcoded later
+        self.num_workers = params.num_workers
 
-        self.eval_ways = eval_ways
-        self.eval_support_shots = eval_support_shots
-        self.eval_query_shots = eval_query_shots
+        self.eval_ways = params.eval_ways
+        self.eval_support_shots = params.eval_support_shots
+        self.eval_query_shots = params.eval_query_shots
 
-        self.train_oracle_mode = train_oracle_mode
-        self.train_oracle_ways = train_oracle_ways
-        self.train_oracle_shots = train_oracle_shots
-        self.dataset = dataset
-        self.datapath = datapath
+        self.train_oracle_mode = params.train_oracle_mode
+        self.train_oracle_ways = params.train_oracle_ways
+        self.train_oracle_shots = params.train_oracle_shots
+        self.dataset = params.dataset
+        self.datapath = params.datapath
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.ds = OracleDataset(

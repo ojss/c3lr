@@ -301,6 +301,7 @@ class ProtoCLR(pl.LightningModule):
 
         elif self.clustering_algo is not None:
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
+            breakpoint()
             self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
             loss += loss_cluster
 
