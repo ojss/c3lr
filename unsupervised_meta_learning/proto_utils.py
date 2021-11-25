@@ -180,7 +180,7 @@ def cluster_diff_loss(
         f_sim = partial(F.cosine_similarity, dim=-1)
     elif similarity == 'euclidean':
         f_sim = lambda x, y: torch.sum((x - y) ** 2, dim=-1)
-    loss = torch.tensor(0.).to(z.device)
+    loss = torch.tensor(0.).type_as(z)
     z_labels = torch.cat([z.squeeze(0), labels.reshape([z.shape[1], 1])], dim=-1)
 
     if reduction == 'mean':

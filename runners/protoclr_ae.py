@@ -27,40 +27,40 @@ from unsupervised_meta_learning.dataclasses.protoclr_container import (
 
 
 def protoclr_ae(
-    dataset,
-    datapath,
-    lr=1e-3,
-    inner_lr=1e-3,
-    gamma=1.0,
-    distance="euclidean",
-    ckpt_dir=Path("./ckpts"),
-    ae=False,
-    tau=1.0,
-    eval_ways=5,
-    clustering_alg=None,
-    cl_reduction=None,
-    cluster_on_latent=False,
-    eval_support_shots=1,
-    eval_query_shots=15,
-    n_images=None,
-    n_classes=None,
-    n_support=1,
-    n_query=3,
-    batch_size=50,
-    no_aug_support=False,
-    no_aug_query=False,
-    logging="wandb",
-    log_images=False,
-    profiler="torch",
-    train_oracle_mode=False,
-    train_oracle_ways=None,
-    train_oracle_shots=None,
-    num_workers=0,
-    callbacks=True,
-    patience=200,
-    use_plotly=True,
-    use_entropy=False,
-    uuid=None, #comes from OS should be constant mostly
+        dataset,
+        datapath,
+        lr=1e-3,
+        inner_lr=1e-3,
+        gamma=1.0,
+        distance="euclidean",
+        ckpt_dir=Path("./ckpts"),
+        ae=False,
+        tau=1.0,
+        eval_ways=5,
+        clustering_alg=None,
+        cl_reduction=None,
+        cluster_on_latent=False,
+        eval_support_shots=1,
+        eval_query_shots=15,
+        n_images=None,
+        n_classes=None,
+        n_support=1,
+        n_query=3,
+        batch_size=50,
+        no_aug_support=False,
+        no_aug_query=False,
+        logging="wandb",
+        log_images=False,
+        profiler="torch",
+        train_oracle_mode=False,
+        train_oracle_ways=None,
+        train_oracle_shots=None,
+        num_workers=0,
+        callbacks=True,
+        patience=200,
+        use_plotly=True,
+        ddp=False,
+        uuid=None,  # comes from OS should be constant mostly
 ):
     params = PCLRParamsContainer(
         dataset,
@@ -89,13 +89,12 @@ def protoclr_ae(
         train_oracle_ways=train_oracle_ways,
         train_oracle_shots=train_oracle_shots,
         num_workers=num_workers,
-        use_entropy=use_entropy,
     )
- 
+
     if (
-        train_oracle_mode is True
-        and train_oracle_ways is not None
-        and train_oracle_shots is not None
+            train_oracle_mode is True
+            and train_oracle_ways is not None
+            and train_oracle_shots is not None
     ):
         dm = OracleDataModule(params)
     else:
@@ -130,7 +129,7 @@ def protoclr_ae(
                 "oracle_mode": train_oracle_mode,
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
-                "use_entropy": use_entropy,
+                "ddp": ddp,
                 "timestamp": str(datetime.now()),
             },
         )
@@ -171,7 +170,7 @@ def protoclr_ae(
         )
 
     ckpt_path = os.path.join(
-            ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
+        ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
     )
 
     ckpt_callback = ModelCheckpoint(
@@ -202,10 +201,11 @@ def protoclr_ae(
         limit_val_batches=15,
         limit_test_batches=600,
         callbacks=cbs,
-        num_sanity_val_steps=2,
+        num_sanity_val_steps=1,
         weights_save_path=os.path.join(ckpt_dir, "hpc_saves", uuid),
         gpus=gpus,
         logger=logger,
+        strategy="dp"
     )
 
     with warnings.catch_warnings():

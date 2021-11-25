@@ -92,7 +92,7 @@ class ProtoCLR(pl.LightningModule):
         self.lr_decay_step = params.lr_decay_step
         self.inner_lr = params.inner_lr
 
-        self.mode =params. mode
+        self.mode = params.mode
         self.eval_ways = params.eval_ways
         self.sup_finetune = params.sup_finetune
         self.sup_finetune_lr = params.sup_finetune_lr
@@ -109,7 +109,6 @@ class ProtoCLR(pl.LightningModule):
         else:
             self.no_unsqueeze_flg = False
 
-        self.use_entropy = params.use_entropy
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
@@ -212,7 +211,7 @@ class ProtoCLR(pl.LightningModule):
                     reduced_z, algo="hdbscan", hdbscan_metric="euclidean"
                 )
                 pred_query_labels = predicted_labels[ways * self.n_support:]
-                pred_query_labels = torch.from_numpy(pred_query_labels).to(self.device)
+                pred_query_labels = torch.from_numpy(pred_query_labels).type_as(z)
                 if -1 in pred_query_labels:
                     non_noise_indices = ~(pred_query_labels == -1)
                     pred_query_labels = pred_query_labels.masked_select(
@@ -230,12 +229,6 @@ class ProtoCLR(pl.LightningModule):
                     temperature=tau,
                     reduction=self.cl_reduction
                 )
-                if self.use_entropy:
-                    ent = torch.distributions.Categorical(
-                        probs=torch.from_numpy(probs)
-                    ).entropy()
-                    self.log("entropy_clstr", ent)
-                    loss += ent
 
         return loss
 
@@ -266,11 +259,11 @@ class ProtoCLR(pl.LightningModule):
         # Create dummy query labels
         y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
         y_query = y_query.repeat(batch_size, 1, self.n_query)
-        y_query = y_query.view(batch_size, -1).to(self.device)
+        y_query = y_query.view(batch_size, -1).type_as(data).long()
 
         y_support = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
         y_support = y_support.repeat(batch_size, 1, self.n_support)
-        y_support = y_support.view(batch_size, -1).to(self.device)
+        y_support = y_support.view(batch_size, -1).type_as(data).long()
 
         # Extract features (first dim is batch dim)>
         # e.g. [1,50*(n_support+n_query),*(3,84,84)]
@@ -285,6 +278,7 @@ class ProtoCLR(pl.LightningModule):
             # works only for omniglot at the moment
             labels = batch["labels"]
             if not self.no_unsqueeze_flg:
+                # TODO: see if these .cpu calls need to go
                 y_support = labels[:, 0].cpu()
                 y_query = labels[:, 1:].flatten().cpu()
                 lb_enc = LabelEncoder()
@@ -301,7 +295,6 @@ class ProtoCLR(pl.LightningModule):
 
         elif self.clustering_algo is not None:
             loss_cluster = self._get_cluster_loss(z, y_support, y_query, ways)
-            breakpoint()
             self.log("cluster_clr", loss_cluster.item(), prog_bar=True)
             loss += loss_cluster
 
@@ -315,7 +308,7 @@ class ProtoCLR(pl.LightningModule):
             self.log(
                 "mse_loss",
                 mse_loss.item(),
-                prog_bar=True,
+                prog_bar=True
             )
             loss += mse_loss
 
@@ -332,7 +325,6 @@ class ProtoCLR(pl.LightningModule):
             self,
             encoder,
             episode,
-            device="cpu",
             proto_init=True,
             freeze_backbone=False,
             finetune_batch_norm=False,
@@ -341,10 +333,10 @@ class ProtoCLR(pl.LightningModule):
             n_way=5,
     ):
         x_support = episode["train"][0][0]  # only take data & only first batch
-        x_support = x_support.to(device)
+        x_support = x_support
         x_support_var = Variable(x_support)
         x_query = episode["test"][0][0]  # only take data & only first batch
-        x_query = x_query.to(device)
+        x_query = x_query
         x_query_var = Variable(x_query)
         n_support = x_support.shape[0] // n_way
         n_query = x_query.shape[0] // n_way
@@ -352,24 +344,23 @@ class ProtoCLR(pl.LightningModule):
         batch_size = n_way
         support_size = n_way * n_support
 
-        y_a_i = Variable(torch.from_numpy(np.repeat(range(n_way), n_support))).to(
-            self.device
+        y_a_i = Variable(torch.from_numpy(np.repeat(range(n_way), n_support))).type_as(
+            x_support
         )  # (25,)
 
         x_b_i = x_query_var
         x_a_i = x_support_var
         encoder.eval()
 
-        z_a_i = nn.Flatten()(encoder(x_a_i.to(device)))  # .view(*x_a_i.shape[:-3], -1)
+        z_a_i = nn.Flatten()(encoder(x_a_i))  # .view(*x_a_i.shape[:-3], -1)
         encoder.train()
 
         # Define linear classifier
         input_dim = z_a_i.shape[1]
-        classifier = Classifier(input_dim, n_way=n_way)
-        classifier.to(device)
+        classifier = Classifier(input_dim, n_way=n_way).to(self.device)
         classifier.train()
         ###############################################################################################
-        loss_fn = nn.CrossEntropyLoss().to(device)
+        loss_fn = nn.CrossEntropyLoss()
         # Initialise as distance classifer (distance to prototypes)
         if proto_init:
             classifier.init_params_from_prototypes(z_a_i, n_way, n_support)
@@ -400,10 +391,10 @@ class ProtoCLR(pl.LightningModule):
                 #####################################
                 selected_id = torch.from_numpy(
                     rand_id[j: min(j + batch_size, support_size)]
-                ).to(device)
+                ).type_as(x_support).long()
 
                 z_batch = x_a_i[selected_id]
-                y_batch = y_a_i[selected_id]
+                y_batch = y_a_i[selected_id].long()
                 #####################################
 
                 output = nn.Flatten()(encoder(z_batch))
@@ -420,10 +411,10 @@ class ProtoCLR(pl.LightningModule):
         classifier.eval()
         encoder.eval()
 
-        output = nn.Flatten()(encoder(x_b_i.to(device)))
+        output = nn.Flatten()(encoder(x_b_i))
         scores = classifier(output)
 
-        y_query = torch.tensor(np.repeat(range(n_way), n_query)).to(device)
+        y_query = torch.tensor(np.repeat(range(n_way), n_query)).type_as(x_support).long()
         loss = F.cross_entropy(scores, y_query, reduction="mean")
         _, predictions = torch.max(scores, dim=1)
         accuracy = torch.mean(predictions.eq(y_query).float())
@@ -443,7 +434,6 @@ class ProtoCLR(pl.LightningModule):
                 total_epoch=self.sup_finetune_epochs,
                 freeze_backbone=self.ft_freeze_backbone,
                 finetune_batch_norm=self.finetune_batch_norm,
-                device=self.device,
                 n_way=self.eval_ways,
             )
             self.encoder.load_state_dict(original_encoder_state)
@@ -454,7 +444,7 @@ class ProtoCLR(pl.LightningModule):
             with torch.no_grad():
                 loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
         self.log_dict(
-            {"val_loss": loss.item(), "val_accuracy": accuracy}, prog_bar=True
+            {"val_loss": loss.item(), "val_accuracy": accuracy}, prog_bar=True, sync_dist=True
         )
         return loss.item(), accuracy
 
@@ -468,7 +458,6 @@ class ProtoCLR(pl.LightningModule):
             total_epoch=self.sup_finetune_epochs,
             freeze_backbone=self.ft_freeze_backbone,
             finetune_batch_norm=self.finetune_batch_norm,
-            device=self.device,
             n_way=self.eval_ways,
         )
         self.encoder.load_state_dict(original_encoder_state)
@@ -479,6 +468,7 @@ class ProtoCLR(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            sync_dist=True
         )
         self.log(
             "test_acc",
@@ -487,5 +477,6 @@ class ProtoCLR(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            sync_dist=True
         )
         return loss.item(), accuracy
