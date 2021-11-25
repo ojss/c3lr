@@ -12,7 +12,7 @@ from pytorch_lightning.profiler import PyTorchProfiler
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
     get_episode_loader,
-    UnlabelledDataset, OracleOmniglotModule
+    UnlabelledDataset, OracleDataModule
 )
 from unsupervised_meta_learning.proto_utils import (
     CAE,
@@ -34,72 +34,73 @@ from unsupervised_meta_learning.protoclr import ProtoCLR
 
 profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
-# dm = UnlabelledDataModule(
-#     "omniglot",
-#     "./data/untarred",
-#     transform=None,
-#     n_support=1,
-#     n_query=3,
-#     n_images=None,
-#     n_classes=10,
-#     batch_size=50,
-#     seed=10,
-#     mode="trainval",
-#     num_workers=0,
-#     eval_ways=5,
-#     eval_support_shots=5,
-#     eval_query_shots=15,
-#     train_oracle_mode=False,
-#     train_oracle_shots=5,
-#     train_oracle_ways=10
-# )
-
-dm = OracleOmniglotModule(
-        "omniglot",
-        "./data/untarred",
-        n_support=1,
-        n_query=3,
-        batch_size=1,
-        num_workers=2,
-        eval_ways=5,
-        eval_support_shots=5,
-        eval_query_shots=15,
-        train_oracle_mode=True,
-        train_oracle_shots=5,
-        train_oracle_ways=10
+dm = UnlabelledDataModule(
+    "miniimagenet",
+    "./data/untarred",
+    transform=None,
+    n_support=1,
+    n_query=3,
+    n_images=None,
+    n_classes=None,
+    batch_size=100,
+    seed=10,
+    mode="trainval",
+    num_workers=0,
+    eval_ways=5,
+    eval_support_shots=5,
+    eval_query_shots=15,
+    train_oracle_mode=False,
+    train_oracle_shots=None,
+    train_oracle_ways=None
 )
+#
+# dm = OracleDataModule(
+#         "miniimagenet",
+#         "./data/untarred",
+#         n_support=1,
+#         n_query=3,
+#         batch_size=1,
+#         num_workers=2,
+#         eval_ways=5,
+#         eval_support_shots=5,
+#         eval_query_shots=15,
+#         train_oracle_mode=True,
+#         train_oracle_shots=5,
+#         train_oracle_ways=10
+# )
 
 model = ProtoCLR(
     n_support=1,
     n_query=3,
-    batch_size=50,
+    batch_size=200,
     distance="euclidean",
     tau=0.5,
-    num_input_channels=1,
-    decoder_class=Decoder4L,
+    num_input_channels=3,
+    decoder_class=Decoder4L4Mini,
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    cl_reduction=None,
+    clustering_algo=None,
+    cl_reduction="none",
     ae=False,
     gamma=.001,
     log_images=True,
-    train_oracle_mode=True,
+    train_oracle_mode=False,
     train_oracle_shots=5,
     train_oracle_ways=10,
     use_entropy=False
 )
 
-logger = WandbLogger(
-    project="ProtoCLR+AE",
-    config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
-)
+# logger = WandbLogger(
+#     project="ProtoCLR+AE",
+#     config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
+# )
 
 trainer = pl.Trainer(
     profiler="simple",
     max_epochs=2,
     limit_train_batches=100,
-    fast_dev_run=False,
+    fast_dev_run=True,
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[
@@ -111,7 +112,7 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    gpus=0,
+    gpus=1,
     # logger=logger,
 )
 
