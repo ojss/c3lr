@@ -112,14 +112,14 @@ class ProtoCLR(pl.LightningModule):
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
-        self.automatic_optimization = False
+        # self.automatic_optimization = False
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.01)
         sch = torch.optim.lr_scheduler.StepLR(
             opt, step_size=self.lr_decay_step, gamma=self.lr_decay_rate
         )
-        return {"optimizer": opt, "lr_scheduler": sch}
+        return {"optimizer": opt, "lr_scheduler": {"scheduler": sch, 'interval': 'step'}}
 
     def forward(self, x):
         z = self.encoder(x.view(-1, *x.shape[-3:]))
@@ -235,7 +235,7 @@ class ProtoCLR(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         opt = self.optimizers()
         sch = self.lr_schedulers()
-        opt.zero_grad()
+        # opt.zero_grad()
         # [batch_size x ways x shots x image_dim]
         data = batch["data"]
         if not self.no_unsqueeze_flg:
@@ -311,10 +311,12 @@ class ProtoCLR(pl.LightningModule):
                 prog_bar=True
             )
             loss += mse_loss
+        torch.cuda.synchronize()
+        torch.autograd.set_detect_anomaly(True)
 
-        self.manual_backward(loss)
-        opt.step()
-        sch.step()
+        # self.manual_backward(loss)
+        # opt.step()
+        # sch.step()
 
         self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True)
 

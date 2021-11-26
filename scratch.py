@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import warnings
+import torch
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profiler import PyTorchProfiler
+from pytorch_lightning.plugins import DDPPlugin
 
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
@@ -12,20 +14,21 @@ from unsupervised_meta_learning.pl_dataloaders import (
 )
 from unsupervised_meta_learning.proto_utils import (
     Decoder4L,
+    Decoder4L4Mini,
     Encoder4L,
 )
 from unsupervised_meta_learning.protoclr import ProtoCLR
 
-profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+torch.autograd.set_detect_anomaly(True)
+# profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
-gpus = 2
-
+gpus = torch.cuda.device_count()
 train_oracle_mode = False
 train_oracle_shots = 5
 train_oracle_ways = 10
 
 params = PCLRParamsContainer(
-    "omniglot",
+    "miniimagenet",
     "./data/untarred",
     gpus=gpus,
     transform=None,
@@ -33,10 +36,10 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=50,
+    batch_size=200,
     seed=10,
     mode="trainval",
-    num_workers=0,
+    num_workers=32,
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
@@ -46,7 +49,7 @@ params = PCLRParamsContainer(
     distance="euclidean",
     tau=0.5,
     num_input_channels=1,
-    decoder_class=Decoder4L,
+    decoder_class=Decoder4L4Mini,
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
@@ -71,10 +74,10 @@ logger = WandbLogger(
 )
 
 trainer = pl.Trainer(
-    profiler="simple",
-    max_epochs=2,
+    # profiler="simple",
+    max_epochs=1,
     limit_train_batches=100,
-    fast_dev_run=True,
+    fast_dev_run=False,
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[
@@ -86,8 +89,9 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    gpus=1,
-    strategy='dp'
+    gpus=gpus,
+    strategy='dp',
+    # replace_sampler_ddp=False
     # logger=logger,
 )
 

@@ -642,7 +642,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
         return dataloader_train
 
     def val_dataloader(self):
-        bsize = 1 if self.gpu_count == 1 or self.gpu_count == 0 else self.gpu_count
+        bsize = 1
         dataloader_val = get_episode_loader(
             self.dataset,
             self.datapath,
@@ -658,7 +658,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         del self.dataset_train
-        bsize = 1 if self.gpu_count == 1 or self.gpu_count == 0 else self.gpu_count
+        bsize = 1
         dataloader_test = get_episode_loader(
             self.dataset,
             self.datapath,

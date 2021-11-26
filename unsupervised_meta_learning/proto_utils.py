@@ -85,13 +85,14 @@ def get_prototypes(self, emb, targets, num_classes):
     batch_size, emb_size = emb.size(0), emb.size(-1)
 
     num_samples = self.get_num_samples(targets, num_classes, dtype=emb.dtype)
-    num_samples.unsqueeze_(-1)
+    num_samples = num_samples.unsqueeze(-1)
     num_samples = torch.max(num_samples, torch.ones_like(num_samples))
 
     prototypes = emb.new_zeros((batch_size, num_classes, emb_size))
     indices = targets.unsqueeze(-1).expand_as(emb)
 
-    prototypes.scatter_add_(1, indices, emb).div_(num_samples)
+    
+    prototypes = prototypes.scatter_add(1, indices, emb).div(num_samples)
 
     return prototypes
 
@@ -198,9 +199,9 @@ def cluster_diff_loss(
         for label in labels.unique().tolist():
             tmp = z_labels[z_labels[:, -1] == label][:, :-1]
             dists = torch.pdist(tmp, p=2.)
-            loss += F.cross_entropy(-dists.unsqueeze(0), torch.full_like(dists, label).unsqueeze(0))
-        loss /= len(labels.unique())
-        loss *= .02
+            loss = loss + F.cross_entropy(-dists.unsqueeze(0), torch.full_like(dists, label).unsqueeze(0))
+        loss = loss / len(labels.unique())
+        loss = loss * .02
 
     return loss
 
