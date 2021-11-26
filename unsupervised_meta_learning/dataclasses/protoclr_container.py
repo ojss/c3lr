@@ -10,6 +10,7 @@ from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini, En
 class PCLRParamsContainer:
     dataset: str
     datapath: str
+    gpus: int = 0
     transform: Optional[list] = None
     n_support: int = 1
     n_query: int = 3

@@ -1,43 +1,33 @@
 # -*- coding: utf-8 -*-
 import warnings
-from pathlib import Path
-import torch
-from numpy import mod
-from functools import partial
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping
+
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profiler import PyTorchProfiler
 
+from unsupervised_meta_learning.callbacks.umapcallbacks import *
+from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
-    get_episode_loader,
-    UnlabelledDataset, OracleDataModule
+    OracleDataModule
 )
 from unsupervised_meta_learning.proto_utils import (
-    CAE,
-    CAE4L,
     Decoder4L,
-    Encoder,
-    Decoder,
     Encoder4L,
-    Decoder4L4Mini,
-    AttnEncoder4L,
 )
-
-from unsupervised_meta_learning.callbacks.image_generation import *
-from unsupervised_meta_learning.callbacks.confinterval import *
-from unsupervised_meta_learning.callbacks.pcacallbacks import *
-from unsupervised_meta_learning.callbacks.umapcallbacks import *
-
 from unsupervised_meta_learning.protoclr import ProtoCLR
-from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 
 profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+
+gpus = 2
+
+train_oracle_mode = False
+train_oracle_shots = 5
+train_oracle_ways = 10
 
 params = PCLRParamsContainer(
     "omniglot",
     "./data/untarred",
+    gpus=gpus,
     transform=None,
     n_support=1,
     n_query=3,
@@ -50,9 +40,9 @@ params = PCLRParamsContainer(
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
-    train_oracle_mode=True,
-    train_oracle_shots=5,
-    train_oracle_ways=20,
+    train_oracle_mode=train_oracle_mode,
+    train_oracle_shots=train_oracle_shots,
+    train_oracle_ways=train_oracle_ways,
     distance="euclidean",
     tau=0.5,
     num_input_channels=1,
@@ -68,9 +58,10 @@ params = PCLRParamsContainer(
 
 )
 
-# dm = UnlabelledDataModule(params)
-
-dm = OracleDataModule(params)
+if train_oracle_mode and train_oracle_shots is not None and train_oracle_ways is not None:
+    dm = OracleDataModule(params)
+else:
+    dm = UnlabelledDataModule(params)
 
 model = ProtoCLR(params)
 
@@ -95,7 +86,8 @@ trainer = pl.Trainer(
         # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
     ],
     num_sanity_val_steps=2,
-    gpus=0,
+    gpus=1,
+    strategy='dp'
     # logger=logger,
 )
 

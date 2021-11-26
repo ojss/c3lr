@@ -62,9 +62,11 @@ def protoclr_ae(
         ddp=False,
         uuid=None,  # comes from OS should be constant mostly
 ):
+    gpus = torch.cuda.device_count()
     params = PCLRParamsContainer(
         dataset,
         datapath,
+        gpus=gpus,
         lr=lr,
         inner_lr=inner_lr,
         gamma=gamma,

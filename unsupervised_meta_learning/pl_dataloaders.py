@@ -82,16 +82,16 @@ def collate_task_batch(batch):
 
 # Cell
 def get_episode_loader(
-    dataset,
-    datapath,
-    ways,
-    shots,
-    test_shots,
-    batch_size,
-    split,
-    download=True,
-    shuffle=True,
-    num_workers=0,
+        dataset,
+        datapath,
+        ways,
+        shots,
+        test_shots,
+        batch_size,
+        split,
+        download=True,
+        shuffle=True,
+        num_workers=0,
 ):
     """Create an episode data loader for a torchmeta dataset. Can also
     include unlabelled data for semi-supervised learning.
@@ -221,17 +221,17 @@ def identity_transform(img_shape):
 
 class OracleDataset(Dataset):
     def __init__(
-        self,
-        dataset,
-        datapath,
-        split="train",
-        n_support=1,
-        n_query=3,
-        no_aug_support=False,
-        no_aug_query=False,
-        train_oracle_mode=False,
-        train_oracle_shots: int = None,
-        train_oracle_ways: int = None,
+            self,
+            dataset,
+            datapath,
+            split="train",
+            n_support=1,
+            n_query=3,
+            no_aug_support=False,
+            no_aug_query=False,
+            train_oracle_mode=False,
+            train_oracle_shots: int = None,
+            train_oracle_ways: int = None,
     ):
         self.n_support = n_support
         self.n_query = n_query
@@ -329,15 +329,15 @@ class OracleDataset(Dataset):
 
 class OracleDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        params: PCLRParamsContainer
+            self,
+            params: PCLRParamsContainer
     ):
         super(OracleDataModule, self).__init__()
         self.n_support = params.n_support
         self.n_query = params.n_query
         self.img_size = (28, 28) if params.dataset == "omniglot" else (84, 84)
 
-        self.batch_size = 1 #TODO: check if this remains to be hardcoded later
+        self.batch_size = 1  # TODO: check if this remains to be hardcoded later
         self.num_workers = params.num_workers
 
         self.eval_ways = params.eval_ways
@@ -404,21 +404,21 @@ class OracleDataModule(pl.LightningDataModule):
 # Cell
 class UnlabelledDataset(Dataset):
     def __init__(
-        self,
-        dataset,
-        datapath,
-        split,
-        transform=None,
-        n_support=1,
-        n_query=1,
-        n_images=None,
-        n_classes=None,
-        seed=10,
-        no_aug_support=False,
-        no_aug_query=False,
-        train_oracle_mode=False,
-        train_oracle_shots: int = None,
-        train_oracle_ways: int = None,
+            self,
+            dataset,
+            datapath,
+            split,
+            transform=None,
+            n_support=1,
+            n_query=1,
+            n_images=None,
+            n_classes=None,
+            seed=10,
+            no_aug_support=False,
+            no_aug_query=False,
+            train_oracle_mode=False,
+            train_oracle_shots: int = None,
+            train_oracle_ways: int = None,
     ):
         """
         Args:
@@ -482,7 +482,7 @@ class UnlabelledDataset(Dataset):
             classes = []
             with h5py.File(os.path.join(datapath, "data.hdf5"), "r") as f_data:
                 with open(
-                    os.path.join(datapath, "vinyals_{}_labels.json".format(split))
+                        os.path.join(datapath, "vinyals_{}_labels.json".format(split))
                 ) as f_labels:
                     labels = json.load(f_labels)
                     for label in labels:
@@ -503,8 +503,8 @@ class UnlabelledDataset(Dataset):
         # Optionally filter out some classes)
         if n_classes is not None:
             random_idxs = np.random.RandomState(seed).permutation(len(classes))[
-                :n_classes
-            ]
+                          :n_classes
+                          ]
             classes = [classes[i] for i in random_idxs]
 
         # Collect in single array
@@ -566,6 +566,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
     def __init__(self, params: PCLRParamsContainer, **kwargs):
         super().__init__()
 
+        self.gpu_count = params.gpus
         self.n_images = params.n_images
         self.n_support = params.n_support
         self.n_query = params.n_query
@@ -641,27 +642,30 @@ class UnlabelledDataModule(pl.LightningDataModule):
         return dataloader_train
 
     def val_dataloader(self):
+        bsize = 1 if self.gpu_count == 1 or self.gpu_count == 0 else self.gpu_count
         dataloader_val = get_episode_loader(
             self.dataset,
             self.datapath,
             ways=self.eval_ways,
             shots=self.eval_support_shots,
             test_shots=self.eval_query_shots,
-            batch_size=1,
+            batch_size=bsize,
             split="val",
+            shuffle=False,
             **self.kwargs
         )
         return dataloader_val
 
     def test_dataloader(self):
         del self.dataset_train
+        bsize = 1 if self.gpu_count == 1 or self.gpu_count == 0 else self.gpu_count
         dataloader_test = get_episode_loader(
             self.dataset,
             self.datapath,
             ways=self.eval_ways,
             shots=self.eval_support_shots,
             test_shots=self.eval_query_shots,
-            batch_size=1,
+            batch_size=bsize,
             split="test",
             shuffle=False,
             **self.kwargs
@@ -672,17 +676,17 @@ class UnlabelledDataModule(pl.LightningDataModule):
 # Cell
 class OmniglotDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_dir: str,
-        shots: int,
-        ways: int,
-        shuffle_ds: bool,
-        test_shots: int,
-        meta_train: bool,
-        download: bool,
-        batch_size: str,
-        shuffle: bool,
-        num_workers: int,
+            self,
+            data_dir: str,
+            shots: int,
+            ways: int,
+            shuffle_ds: bool,
+            test_shots: int,
+            meta_train: bool,
+            download: bool,
+            batch_size: str,
+            shuffle: bool,
+            num_workers: int,
     ):
         super().__init__()
         self.data_dir = data_dir
@@ -747,17 +751,17 @@ class OmniglotDataModule(pl.LightningDataModule):
 # Cell
 class MiniImagenetDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_dir: str,
-        shots: int,
-        ways: int,
-        shuffle_ds: bool,
-        test_shots: int,
-        meta_train: bool,
-        download: bool,
-        batch_size: str,
-        shuffle: bool,
-        num_workers: int,
+            self,
+            data_dir: str,
+            shots: int,
+            ways: int,
+            shuffle_ds: bool,
+            test_shots: int,
+            meta_train: bool,
+            download: bool,
+            batch_size: str,
+            shuffle: bool,
+            num_workers: int,
     ):
         self.data_dir = data_dir
         self.shots = shots
