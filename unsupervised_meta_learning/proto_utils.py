@@ -170,7 +170,7 @@ def cluster_diff_loss(
         temperature=0.5,
         reduction="mean",
 ):
-    labels = torch.Tensor(labels).type_as(z).long()
+    labels = torch.tensor(labels).type_as(z).long()
     # TODO: use the probabilities from HDBSCAN and calculate CE
     """
     For each cluster (defined by labels) calculate the cross entropy loss.
