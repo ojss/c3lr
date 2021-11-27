@@ -68,7 +68,7 @@ class ProtoCLR(pl.LightningModule):
 
         self.clustering_algo = params.clustering_algo
         self.cl_reduction = params.cl_reduction
-
+        print(f"Clustering algo in use: {params.clustering_algo}")
         self.ae = params.ae
         if self.ae == True:
             self.decoder = params.decoder_class(
