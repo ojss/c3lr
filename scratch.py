@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import warnings
 import torch
+from sklearnex import patch_sklearn
+patch_sklearn()
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profiler import PyTorchProfiler
@@ -23,7 +25,7 @@ torch.autograd.set_detect_anomaly(True)
 # profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 
 gpus = torch.cuda.device_count()
-train_oracle_mode = False
+train_oracle_mode = True
 train_oracle_shots = 5
 train_oracle_ways = 10
 
@@ -39,7 +41,7 @@ params = PCLRParamsContainer(
     batch_size=200,
     seed=10,
     mode="trainval",
-    num_workers=32,
+    num_workers=12,
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
@@ -53,6 +55,7 @@ params = PCLRParamsContainer(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
+    # clustering_algo='hdbscan',
     cl_reduction="mean",
     ae=False,
     gamma=.001,
@@ -64,6 +67,7 @@ params = PCLRParamsContainer(
 if train_oracle_mode and train_oracle_shots is not None and train_oracle_ways is not None:
     dm = OracleDataModule(params)
 else:
+    print("using unlabelled")
     dm = UnlabelledDataModule(params)
 
 model = ProtoCLR(params)
@@ -77,7 +81,7 @@ trainer = pl.Trainer(
     # profiler="simple",
     max_epochs=1,
     limit_train_batches=100,
-    fast_dev_run=False,
+    fast_dev_run=True,
     limit_val_batches=15,
     limit_test_batches=600,
     callbacks=[
