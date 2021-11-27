@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -8,20 +8,20 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=20:00:00
+#SBATCH --time=10:30:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
 
 # Request 1 CPU per active thread of your program (assume 1 unless you specifically set this)
 # The default number of CPUs per task is 1 (note: CPUs are always allocated per 2)
-#SBATCH --cpus-per-task=3
+#SBATCH --cpus-per-task=4
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=10096
+#SBATCH --mem=32000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -39,17 +39,26 @@ module load miniconda/3.9
 # For example: srun python my_program.py
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
-source activate /home/nfs/oshirekar/unsupervised_ml/ai
+rnd_uuid=$(uuidgen)
+
+source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 # srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
-srun python runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
-	--gamma=3e-3 \
+srun python ../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+	--lr=1e-3 \
+	--inner_lr=1e-3  \
+	--eval-ways=5 \
 	--eval_support_shots=5 \
-	--log_images=True \
+	--batch_size=200 \
 	--distance='euclidean' \
 	--tau=1.0 \
-	--lr=3e-3 \
-	--inner_lr=1e-3 \
-        --logging='wandb' \
-        --clustering_alg='kmeans' \
-        --cluster_on_latent=True
+	--logging='wandb' \
+	--clustering_alg="None" \
+	--cluster_on_latent=False \
+	--ae=False \
+	--profiler='simple'  \
+	--train_oracle_mode=False \
+	--callbacks=False \
+	--patience=200 \
+	--no_aug_support=True \
+	--uuid=$rnd_uuid

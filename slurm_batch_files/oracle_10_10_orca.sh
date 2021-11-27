@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=short
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=10:00:00
+#SBATCH --time=4:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -41,7 +41,7 @@ module load miniconda/3.9
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
-srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
 	--eval-ways=5 \
@@ -56,7 +56,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--profiler='simple'  \
 	--train_oracle_mode=True \
 	--train_oracle_ways=10 \
-	--train_oracle_shots=20 \
+	--train_oracle_shots=10 \
 	--callbacks=False \
 	--patience=200 \
-	--no_aug_support=True
+	--no_aug_support=True \

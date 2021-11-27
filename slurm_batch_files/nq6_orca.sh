@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=short
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=10:00:00
+#SBATCH --time=3:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -40,23 +40,23 @@ module load miniconda/3.9
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
+# srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
-srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
 	--lr=1e-3 \
 	--inner_lr=1e-3  \
 	--eval-ways=5 \
-	--eval_support_shots=5 \
+	--eval_support_shots=5\
 	--distance='euclidean' \
 	--tau=1.0 \
 	--logging='wandb' \
 	--clustering_alg="None" \
-	--cl_reduction="mean" \
 	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
-	--train_oracle_mode=True \
-	--train_oracle_ways=10 \
-	--train_oracle_shots=20 \
+	--oracle_mode=False \
 	--callbacks=False \
-	--patience=200 \
-	--no_aug_support=True
+	--estop=True \
+	--no_aug_support=True \
+	--n_classes=10 \
+	--n_query=6
