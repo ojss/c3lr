@@ -62,5 +62,5 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--patience=200 \
 	--no_aug_support=True \
 	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-	--use_umap=True \
+	--use_umap=False \
 	--uuid=$rnd_uuid
