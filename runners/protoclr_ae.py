@@ -59,7 +59,6 @@ def protoclr_ae(
         callbacks=True,
         patience=200,
         use_plotly=True,
-        ddp=False,
         uuid=None,  # comes from OS should be constant mostly
 ):
     gpus = torch.cuda.device_count()
@@ -131,7 +130,6 @@ def protoclr_ae(
                 "oracle_mode": train_oracle_mode,
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
-                "ddp": ddp,
                 "timestamp": str(datetime.now()),
             },
         )
@@ -207,7 +205,7 @@ def protoclr_ae(
         weights_save_path=os.path.join(ckpt_dir, "hpc_saves", uuid),
         gpus=gpus,
         logger=logger,
-        strategy="dp"
+        # strategy="dp"
     )
 
     with warnings.catch_warnings():
