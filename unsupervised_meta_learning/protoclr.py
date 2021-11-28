@@ -107,6 +107,7 @@ class ProtoCLR(pl.LightningModule):
         self.train_oracle_shots = params.train_oracle_shots
 
         self.umap = params.use_umap
+        self.km_clusters = params.km_clusters
         if self.train_oracle_mode is True and params.train_oracle_ways is not None and params.train_oracle_shots is not None:
             self.no_unsqueeze_flg = True
         else:
@@ -206,7 +207,7 @@ class ProtoCLR(pl.LightningModule):
             else:
                 reduced_z = emb_list # technically not reduced
             if self.clustering_algo == "kmeans":
-                clf, predicted_labels, _ = clusterer(reduced_z, n_clusters=8, algo="kmeans")
+                clf, predicted_labels, _ = clusterer(reduced_z, n_clusters=self.km_clusters, algo="kmeans")
                 loss = cluster_diff_loss(
                     z,
                     predicted_labels,

@@ -42,6 +42,7 @@ class PCLRParamsContainer:
     tau: float = 1.0
     ae: bool = False
     clustering_algo: Optional[str] = None
+    km_clusters: int = 5
     cl_reduction: str = "mean"
     log_images: bool = False
     sup_finetune: bool = True
