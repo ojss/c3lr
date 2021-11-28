@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
