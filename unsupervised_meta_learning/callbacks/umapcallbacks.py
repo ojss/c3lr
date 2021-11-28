@@ -1,5 +1,6 @@
 import importlib
 from typing import Any
+from functools import partial
 
 import plotly.express as px
 import pytorch_lightning as pl
@@ -9,14 +10,19 @@ import wandb
 from sklearn import cluster
 import matplotlib.pyplot as plt
 import seaborn as sns
+from ..proto_utils import clusterer
+from ..common.utils import log_plotly_graph, log_sns_plot
+
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
+
     extra_args = {"verbose": False}
 else:
     import umap
 
+
 class UMAPCallbackOnTrain(pl.Callback):
-    def __init__(self, logging_tech='wandb', every_n_steps=10, use_plotly=True) -> None:
+    def __init__(self, logging_tech="wandb", every_n_steps=10, use_plotly=True) -> None:
         super().__init__()
         self.logging_tech = logging_tech
         self.every_n_steps = every_n_steps
@@ -93,20 +99,37 @@ class UMAPCallbackOnTrain(pl.Callback):
                     color_continuous_scale=px.colors.diverging.Portland,
                 )
                 wandb.log(
-                    {"UMAP of train embeddings": fig,}, step=trainer.global_step,
+                    {
+                        "UMAP of train embeddings": fig,
+                    },
+                    step=trainer.global_step,
                 )
-            elif self.logging_tech == 'wandb' and not self.plotly:
+            elif self.logging_tech == "wandb" and not self.plotly:
                 sns.set_theme()
-                ax = sns.scatterplot(x=z_prime[:, 0], y=z_prime[:, 1], hue=y, palette="icefire", style=y, legend=False)
+                ax = sns.scatterplot(
+                    x=z_prime[:, 0],
+                    y=z_prime[:, 1],
+                    hue=y,
+                    palette="icefire",
+                    style=y,
+                    legend=False,
+                )
                 wandb.log(
-                    {"UMAP of train embeddings": wandb.Image(ax)}, step=trainer.global_step,
+                    {"UMAP of train embeddings": wandb.Image(ax)},
+                    step=trainer.global_step,
                 )
                 plt.clf()
 
 
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
-    def __init__(self, every_n_epochs=10, logger="wandb", semi_supervised_umap=False, use_plotly=True) -> None:
+    def __init__(
+        self,
+        every_n_epochs=10,
+        logger="wandb",
+        semi_supervised_umap=False,
+        use_plotly=True,
+    ) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
         self.logging_tech = logger
@@ -138,7 +161,7 @@ class UMAPCallback(pl.Callback):
             # To test the theory: one way to do it is plot the UMAPped points and log them
             # check the separation and run clustering with HDBSCAN and pull out representative points of
             # the clusters
-            
+
             pass
         else:
             # running in unsupervised mode
@@ -161,13 +184,26 @@ class UMAPCallback(pl.Callback):
                 color_continuous_scale=px.colors.diverging.Portland,
             )
             wandb.log(
-                {"UMAP of val embeddings": fig,}, step=trainer.global_step,
+                {
+                    "UMAP of val embeddings": fig,
+                },
+                step=trainer.global_step,
             )
-        elif self.logging_tech == 'wandb' and not self.plotly:
+        elif self.logging_tech == "wandb" and not self.plotly:
             sns.set_theme()
-            ax = sns.scatterplot(x=z_prime[:, 0], y=z_prime[:, 1], hue=labels, palette="icefire", style=labels, legend=False)
+            ax = sns.scatterplot(
+                x=z_prime[:, 0],
+                y=z_prime[:, 1],
+                hue=labels,
+                palette="icefire",
+                style=labels,
+                legend=False,
+            )
             wandb.log(
-                {"UMAP of val embeddings": wandb.Image(ax),}, step=trainer.global_step,
+                {
+                    "UMAP of val embeddings": wandb.Image(ax),
+                },
+                step=trainer.global_step,
             )
             plt.clf()
         elif self.logging_tech == "tb":
@@ -177,74 +213,82 @@ class UMAPCallback(pl.Callback):
 class UMAPClusteringCallback(pl.Callback):
     def __init__(
         self,
-        image_f,
-        cluster_on_latent=True,
-        every_n_epochs=1,
-        n_clusters=5,
-        cluster_alg="kmeans",
-        kernel="rbf",
-        logger="wandb",
+        logging_tech="wandb",
+        every_n_steps=90,
+        use_plotly=True,
+        clustering="hdbscan",
+        cluster_on_latent=False,
     ) -> None:
         super().__init__()
-        self.image_f = image_f
-        self.every_n_epochs = every_n_epochs
-        self.logging_tech = logger
-        self.cluster_alg = cluster_alg
-        self.n_clusters = n_clusters
+        self.logging_tech = logging_tech
+        self.every_n_steps = every_n_steps
+        self.plotly = use_plotly
+        self.clusterer = partial(clusterer, algo=clustering)
         self.cluster_on_latent = cluster_on_latent
 
-    def on_validation_batch_start(
+    def on_train_batch_end(
         self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs,
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        if trainer.current_epoch % self.every_n_epochs == 0:
-            imgs, labels = self.image_f()
-            imgs, labels = imgs.to(pl_module.device), labels.to(labels.device)
+
+        if trainer.global_step % self.every_n_steps == 0:
+            data = batch["data"]
+            data = data.unsqueeze(0)
+            # e.g. 50 images, 2 support, 2 query, miniImageNet: torch.Size([1, 50, 4, 3, 84, 84])
+            batch_size = data.size(0)
+            ways = data.size(1)
+
+            # Divide into support and query shots
+            x_support = data[:, :, : pl_module.n_support]
+            # e.g. [1,50*n_support,*(3,84,84)]
+            x_support = x_support.reshape(
+                (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
+            )
+            x_query = data[:, :, pl_module.n_support :]
+            # e.g. [1,50*n_query,*(3,84,84)]
+            x_query = x_query.reshape(
+                (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
+            )
+
+            y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
+            y_query = y_query.repeat(batch_size, 1, pl_module.n_query)
+            y_query = y_query.view(batch_size, -1).type_as(x_query).flatten()
+
+            y_support = (
+                torch.arange(ways).unsqueeze(0).unsqueeze(2)
+            )  # batch and shot dim
+            y_support = y_support.repeat(batch_size, 1, pl_module.n_support)
+            y_support = y_support.view(batch_size, -1).type_as(x_support).flatten()
+            y = torch.cat([y_support, y_query]).cpu().numpy()
+
+            x = torch.cat([x_support, x_query], dim=1)
+
             with torch.no_grad():
                 pl_module.eval()
-                z, _ = pl_module(imgs)
+                z, _ = pl_module(x)
                 pl_module.train()
-            z = F.normalize(z.detach()).cpu().tolist()
-            xs = umap.UMAP(random_state=42, n_components=3).fit_transform(z)
-            data = z if self.cluster_on_latent == True else xs
-
-            if self.cluster_alg == "kmeans":
-                predicted_labels = cluster.KMeans(n_clusters=5).fit_predict(data)
-            elif self.cluster_alg == "spectral":
-                predicted_labels = cluster.SpectralClustering(n_clusters=5).fit_predict(
-                    data
-                )
-
-            fig0 = px.scatter_3d(
-                x=xs[:, 0],
-                y=xs[:, 1],
-                z=xs[:, 2],
-                color=labels,
-                template="seaborn",
-                color_discrete_sequence=px.colors.qualitative.Prism,
-                color_continuous_scale=px.colors.diverging.Portland,
+            z = z.detach().squeeze(0).cpu().numpy()
+            mapper = umap.UMAP(
+                random_state=42,
+                n_components=3 if self.plotly is True else 2,
+                min_dist=0.25,
+                n_neighbors=50,
             )
-            fig1 = px.scatter_3d(
-                x=xs[:, 0],
-                y=xs[:, 1],
-                z=xs[:, 2],
-                color=predicted_labels,
-                template="seaborn",
-                color_discrete_sequence=px.colors.qualitative.Prism,
-                color_continuous_scale=px.colors.diverging.Portland,
-            )
-            if self.logging_tech == "wandb":
-                wandb.log(
-                    {"UMAP clustering of embeddings": fig0,}, step=trainer.global_step,
+            z_prime = mapper.fit_transform(z, y=y)
+
+            _, preds, _ = self.clusterer(z if self.cluster_on_latent else z_prime)
+
+            if self.logging_tech == "wandb" and self.plotly:
+                log_plotly_graph(
+                    z_prime, preds, "UMAP of train embeddings", trainer.global_step
                 )
-                wandb.log({"KMeans results": fig1}, step=trainer.global_step)
-            elif self.logging_tech == "tb":
-                pass
-            del xs
-            del z
-            del data
-            del predicted_labels
+            elif self.logging_tech == "wandb" and not self.plotly:
+                log_sns_plot(
+                    z_prime, preds, "UMAP of train embeddings", trainer.global_step
+                )
+        return outputs

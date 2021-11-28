@@ -1,11 +1,11 @@
 __all__ = ["protoclr_ae"]
 
 import os
-import pdb
 import warnings
 from datetime import datetime
 from pathlib import Path
 
+import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.profiler import AdvancedProfiler, PyTorchProfiler, SimpleProfiler
@@ -19,7 +19,6 @@ from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataset,
     OracleDataModule,
 )
-from unsupervised_meta_learning.proto_utils import Decoder4L, Decoder4L4Mini
 from unsupervised_meta_learning.protoclr import ProtoCLR
 from unsupervised_meta_learning.dataclasses.protoclr_container import (
     PCLRParamsContainer,
@@ -59,12 +58,15 @@ def protoclr_ae(
         callbacks=True,
         patience=200,
         use_plotly=True,
+        use_umap=True,
         uuid=None,  # comes from OS should be constant mostly
 ):
+    pl.seed_everything(42)
     gpus = torch.cuda.device_count()
     params = PCLRParamsContainer(
         dataset,
         datapath,
+        seed=42,
         gpus=gpus,
         lr=lr,
         inner_lr=inner_lr,
@@ -90,6 +92,7 @@ def protoclr_ae(
         train_oracle_ways=train_oracle_ways,
         train_oracle_shots=train_oracle_shots,
         num_workers=num_workers,
+        use_umap=use_umap
     )
 
     if (
@@ -130,6 +133,7 @@ def protoclr_ae(
                 "oracle_mode": train_oracle_mode,
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
+                "umap": use_umap,
                 "timestamp": str(datetime.now()),
             },
         )
@@ -194,7 +198,6 @@ def protoclr_ae(
     else:
         gpus = None
     trainer = pl.Trainer(
-        profiler=profiler,
         max_epochs=10000,
         limit_train_batches=100,
         fast_dev_run=False,

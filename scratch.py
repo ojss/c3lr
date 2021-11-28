@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import warnings
 import torch
-from sklearnex import patch_sklearn
-patch_sklearn()
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.profiler import PyTorchProfiler
@@ -23,9 +21,9 @@ from unsupervised_meta_learning.protoclr import ProtoCLR
 
 torch.autograd.set_detect_anomaly(True)
 # profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
-
+pl.seed_everything(42)
 gpus = torch.cuda.device_count()
-train_oracle_mode = True
+train_oracle_mode = False
 train_oracle_shots = 5
 train_oracle_ways = 10
 
@@ -38,10 +36,9 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=200,
-    seed=10,
+    batch_size=100,
     mode="trainval",
-    num_workers=12,
+    num_workers=4,
     eval_ways=5,
     eval_support_shots=5,
     eval_query_shots=15,
@@ -55,12 +52,13 @@ params = PCLRParamsContainer(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    # clustering_algo='hdbscan',
+    clustering_algo='hdbscan',
     cl_reduction="mean",
     ae=False,
     gamma=.001,
     log_images=True,
-    use_entropy=False
+    use_umap=True,
+    seed=42
 
 )
 
@@ -74,8 +72,9 @@ model = ProtoCLR(params)
 
 logger = WandbLogger(
     project="ProtoCLR+AE",
-    config={"batch_size": 50, "steps": 100, "dataset": "omniglot", "testing": True},
+    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
 )
+logger.watch(model)
 
 trainer = pl.Trainer(
     # profiler="simple",
@@ -83,23 +82,19 @@ trainer = pl.Trainer(
     limit_train_batches=100,
     fast_dev_run=True,
     limit_val_batches=15,
-    limit_test_batches=600,
+    limit_test_batches=1,
     callbacks=[
         # EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
         # UMAPCallback(every_n_epochs=1, use_plotly=False),
         # PCACallback(),
         # UMAPCallbackOnTrain(),
         # PCACallbackOnTrain()
-        # UMAPClusteringCallback(f, cluster_alg="spectral", every_n_epochs=1, cluster_on_latent=True),
+        # UMAPClusteringCallback(every_n_steps=50, cluster_on_latent=True),
     ],
-    num_sanity_val_steps=2,
+    num_sanity_val_steps=1,
     gpus=gpus,
-    strategy='dp',
-    # replace_sampler_ddp=False
-    # logger=logger,
+    logger=logger
 )
-
-# logger.watch(model)
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")

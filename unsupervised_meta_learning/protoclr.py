@@ -63,6 +63,7 @@ class ProtoCLR(pl.LightningModule):
             params: PCLRParamsContainer
     ):
         super().__init__()
+        self.params = params
 
         self.encoder = params.encoder_class(params.num_input_channels, params.base_channel_size, params.latent_dim)
 
@@ -104,6 +105,8 @@ class ProtoCLR(pl.LightningModule):
         self.train_oracle_mode = params.train_oracle_mode
         self.train_oracle_ways = params.train_oracle_ways
         self.train_oracle_shots = params.train_oracle_shots
+
+        self.umap = params.use_umap
         if self.train_oracle_mode is True and params.train_oracle_ways is not None and params.train_oracle_shots is not None:
             self.no_unsqueeze_flg = True
         else:
@@ -190,18 +193,23 @@ class ProtoCLR(pl.LightningModule):
                 reduction=self.cl_reduction
             )
         else:
-            reduced_z = umap.UMAP(
-                random_state=42, n_components=3, min_dist=0.25, n_neighbors=50
-            ).fit_transform(
-                emb_list, y=y
-            )  # (n_samples, 3)
+            if self.umap == True:
+                reduced_z = umap.UMAP(
+                    random_state=self.params.seed,
+                    n_components=3,
+                    min_dist=0.25,
+                    n_neighbors=50
+                ).fit_transform(
+                    emb_list, 
+                    y=y
+                )  # (n_samples, 3)
+            else:
+                reduced_z = emb_list # technically not reduced
             if self.clustering_algo == "kmeans":
-                clf, predicted_labels, _ = clusterer(reduced_z, algo="kmeans")
-                pred_query_labels = predicted_labels[ways * self.n_support:]
+                clf, predicted_labels, _ = clusterer(reduced_z, n_clusters=8, algo="kmeans")
                 loss = cluster_diff_loss(
-                    z_query,
-                    pred_query_labels,
-                    self.eval_ways,
+                    z,
+                    predicted_labels,
                     similarity=self.distance,
                     temperature=tau,
                     reduction=self.cl_reduction
@@ -210,21 +218,21 @@ class ProtoCLR(pl.LightningModule):
                 clf, predicted_labels, probs = clusterer(
                     reduced_z, algo="hdbscan", hdbscan_metric="euclidean"
                 )
-                pred_query_labels = predicted_labels[ways * self.n_support:]
-                pred_query_labels = torch.from_numpy(pred_query_labels).type_as(z)
-                if -1 in pred_query_labels:
-                    non_noise_indices = ~(pred_query_labels == -1)
-                    pred_query_labels = pred_query_labels.masked_select(
+                predicted_labels = torch.from_numpy(predicted_labels).type_as(z)
+                if -1 in predicted_labels:
+                    # breakpoint()
+                    non_noise_indices = ~(predicted_labels == -1)
+                    self.log('noise_count', torch.where(predicted_labels == -1)[0].shape[0])
+                    predicted_labels = predicted_labels.masked_select(
                         non_noise_indices
                     )
-                    z_query = z_query.index_select(
+                    z = z.index_select(
                         1, non_noise_indices.nonzero().flatten()
                     )
 
                 loss = cluster_diff_loss(
-                    z_query,
-                    pred_query_labels,
-                    self.eval_ways,
+                    z,
+                    predicted_labels,
                     similarity=self.distance,
                     temperature=tau,
                     reduction=self.cl_reduction

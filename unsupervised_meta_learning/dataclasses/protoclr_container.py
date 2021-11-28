@@ -52,7 +52,7 @@ class PCLRParamsContainer:
     train_oracle_mode: bool = False
     train_oracle_ways: Optional[int] = None
     train_oracle_shots: Optional[int] = None
-    use_entropy: bool = False
+    use_umap: bool = False
 
     def __post_init__(self):
         if self.dataset == "omniglot":

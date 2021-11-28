@@ -13,6 +13,8 @@ from .nn_utils import mean_from_cluster
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearnex import patch_sklearn
+patch_sklearn()
 from sklearn import cluster
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
@@ -153,7 +155,7 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
         if cuml_details is not None:
             clf = hdbscan.HDBSCAN(metric=hdbscan_metric, min_cluster_size=4)
         else:
-            clf = hdbscan.HDBSCAN(algorithm='best', metric=hdbscan_metric, min_cluster_size=4)
+            clf = hdbscan.HDBSCAN(metric=hdbscan_metric, min_cluster_size=4, core_dist_n_jobs=4)
         clf.fit(z)
         predicted_labels = clf.labels_
         probs = clf.probabilities_
@@ -165,7 +167,6 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
 def cluster_diff_loss(
         z: torch.Tensor,
         labels,
-        ways,
         similarity="cosine",
         temperature=0.5,
         reduction="mean",

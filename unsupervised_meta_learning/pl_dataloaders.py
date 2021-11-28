@@ -594,6 +594,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
         self.train_oracle_ways = params.train_oracle_ways
         self.train_oracle_shots = params.train_oracle_shots
 
+        self.seed = params.seed # IMP: always keep at 42
         self.kwargs = kwargs
 
     def setup(self, stage=None):
@@ -611,6 +612,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
             train_oracle_mode=self.train_oracle_mode,
             train_oracle_ways=self.train_oracle_ways,
             train_oracle_shots=self.train_oracle_shots,
+            seed=self.seed
         )
         if self.merge_train_val:
             dataset_val = UnlabelledDataset(
@@ -627,6 +629,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
                 train_oracle_mode=self.train_oracle_mode,
                 train_oracle_ways=self.train_oracle_ways,
                 train_oracle_shots=self.train_oracle_shots,
+                seed=self.seed
             )
 
             self.dataset_train = ConcatDataset([self.dataset_train, dataset_val])
