@@ -136,6 +136,7 @@ def protoclr_ae(
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
                 "umap": use_umap,
+                "KM Clusters": km_clusters,
                 "timestamp": str(datetime.now()),
             },
         )
