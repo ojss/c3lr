@@ -60,7 +60,7 @@ def protoclr_ae(
         patience=200,
         use_plotly=True,
         use_umap=True,
-        use_pacmpa=False,
+        use_pacmap=False,
         uuid=None,  # comes from OS should be constant mostly
 ):
     pl.seed_everything(42)

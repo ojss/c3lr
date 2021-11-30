@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=06:00:00
+#SBATCH --time=35:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -52,8 +52,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--eval_support_shots=5 \
 	--distance='euclidean' \
 	--logging='wandb' \
-	--clustering_alg="kmeans" \
-	--km_clusters=5 \
+	--clustering_alg="hdbscan" \
 	--cl_reduction="mean" \
 	--cluster_on_latent=False \
 	--ae=False \
@@ -64,4 +63,5 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--no_aug_support=True \
 	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
 	--use_umap=False \
+	--use_pacmap=True \
 	--uuid=$rnd_uuid

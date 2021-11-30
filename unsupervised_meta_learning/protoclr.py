@@ -206,7 +206,7 @@ class ProtoCLR(pl.LightningModule):
                     y=y
                 )  # (n_samples, 3)
             elif self.pacmap == True:
-                reduced_z = pacmap.PaCMAP(n_dims=3).fit_transform(emb_list)
+                reduced_z = pacmap.PaCMAP(n_dims=3, n_neighbours=50).fit_transform(emb_list)
             else:
                 reduced_z = emb_list # technically not reduced
             if self.clustering_algo == "kmeans":
