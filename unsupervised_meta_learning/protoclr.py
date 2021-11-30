@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder
 from torch.autograd import Variable
 from tqdm.auto import tqdm
-
+import pacmap
 from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 
 from .proto_utils import (AttnEncoder4L, Decoder4L, Encoder4L, cluster_diff_loss,
@@ -107,6 +107,7 @@ class ProtoCLR(pl.LightningModule):
         self.train_oracle_shots = params.train_oracle_shots
 
         self.umap = params.use_umap
+        self.pacmap = params.use_pacmap
         self.km_clusters = params.km_clusters
         if self.train_oracle_mode is True and params.train_oracle_ways is not None and params.train_oracle_shots is not None:
             self.no_unsqueeze_flg = True
@@ -204,6 +205,8 @@ class ProtoCLR(pl.LightningModule):
                     emb_list, 
                     y=y
                 )  # (n_samples, 3)
+            elif self.pacmap == True:
+                reduced_z = pacmap.PaCMAP(n_dims=3).fit_transform(emb_list)
             else:
                 reduced_z = emb_list # technically not reduced
             if self.clustering_algo == "kmeans":

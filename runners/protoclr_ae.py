@@ -60,6 +60,7 @@ def protoclr_ae(
         patience=200,
         use_plotly=True,
         use_umap=True,
+        use_pacmpa=False,
         uuid=None,  # comes from OS should be constant mostly
 ):
     pl.seed_everything(42)
@@ -94,7 +95,8 @@ def protoclr_ae(
         train_oracle_ways=train_oracle_ways,
         train_oracle_shots=train_oracle_shots,
         num_workers=num_workers,
-        use_umap=use_umap
+        use_umap=use_umap,
+        use_pacmap=use_pacmap
     )
 
     if (
