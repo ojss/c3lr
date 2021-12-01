@@ -1,6 +1,7 @@
 import importlib
 from typing import Any
 from functools import partial
+import pacmap
 
 import plotly.express as px
 import pytorch_lightning as pl
@@ -213,18 +214,26 @@ class UMAPCallback(pl.Callback):
 class UMAPClusteringCallback(pl.Callback):
     def __init__(
         self,
+        use_umap=True,
+        use_pacmap=False,
         logging_tech="wandb",
         every_n_steps=90,
         use_plotly=True,
         clustering="hdbscan",
+        km_n_clusters=5,
         cluster_on_latent=False,
     ) -> None:
         super().__init__()
         self.logging_tech = logging_tech
         self.every_n_steps = every_n_steps
         self.plotly = use_plotly
-        self.clusterer = partial(clusterer, algo=clustering)
+        self.algo = clustering
+        self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)
         self.cluster_on_latent = cluster_on_latent
+        if use_umap and not use_pacmap:
+            self.mapper = 'umap'
+        else:
+            self.mapper = 'pacmap'
 
     def on_train_batch_end(
         self,
@@ -238,7 +247,8 @@ class UMAPClusteringCallback(pl.Callback):
 
         if trainer.global_step % self.every_n_steps == 0:
             data = batch["data"]
-            data = data.unsqueeze(0)
+            if not pl_module.no_unsqueeze_flg:
+                data = data.unsqueeze(0)
             # e.g. 50 images, 2 support, 2 query, miniImageNet: torch.Size([1, 50, 4, 3, 84, 84])
             batch_size = data.size(0)
             ways = data.size(1)
@@ -249,22 +259,27 @@ class UMAPClusteringCallback(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support :]
+            x_query = data[:, :, pl_module.n_support:]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
             )
+            if pl_module.train_oracle_mode:
+                labels = batch["labels"]
+                y_support = labels[:, 0]
+                y_query = labels[:, 1:].flatten()
+                y = torch.cat([y_support, y_query]).cpu().numpy()
+            else:
+                y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
+                y_query = y_query.repeat(batch_size, 1, pl_module.n_query)
+                y_query = y_query.view(batch_size, -1).type_as(x_query).flatten()
 
-            y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
-            y_query = y_query.repeat(batch_size, 1, pl_module.n_query)
-            y_query = y_query.view(batch_size, -1).type_as(x_query).flatten()
-
-            y_support = (
-                torch.arange(ways).unsqueeze(0).unsqueeze(2)
-            )  # batch and shot dim
-            y_support = y_support.repeat(batch_size, 1, pl_module.n_support)
-            y_support = y_support.view(batch_size, -1).type_as(x_support).flatten()
-            y = torch.cat([y_support, y_query]).cpu().numpy()
+                y_support = (
+                    torch.arange(ways).unsqueeze(0).unsqueeze(2)
+                )  # batch and shot dim
+                y_support = y_support.repeat(batch_size, 1, pl_module.n_support)
+                y_support = y_support.view(batch_size, -1).type_as(x_support).flatten()
+                y = torch.cat([y_support, y_query]).cpu().numpy()
 
             x = torch.cat([x_support, x_query], dim=1)
 
@@ -273,22 +288,33 @@ class UMAPClusteringCallback(pl.Callback):
                 z, _ = pl_module(x)
                 pl_module.train()
             z = z.detach().squeeze(0).cpu().numpy()
-            mapper = umap.UMAP(
-                random_state=42,
-                n_components=3 if self.plotly is True else 2,
-                min_dist=0.25,
-                n_neighbors=50,
-            )
-            z_prime = mapper.fit_transform(z, y=y)
+            if self.mapper == 'umap':
+                mapper = umap.UMAP(
+                    random_state=42,
+                    n_components=3 if self.plotly is True else 2,
+                    min_dist=0.25,
+                    n_neighbors=50,
+                )
+                z_prime = mapper.fit_transform(z, y=y)
+            elif self.mapper == 'pacmap':
+                mapper = pacmap.PaCMAP(
+                    n_dims=3 if self.plotly is True else 2,
+                    n_neighbors=50
+                )
+                z_prime = mapper.fit_transform(z)
 
             _, preds, _ = self.clusterer(z if self.cluster_on_latent else z_prime)
 
             if self.logging_tech == "wandb" and self.plotly:
                 log_plotly_graph(
-                    z_prime, preds, "UMAP of train embeddings", trainer.global_step
+                    z_prime, preds, f"{self.algo} predictions on train embeddings", trainer.global_step
                 )
+                if pl_module.train_oracle_mode:
+                    log_plotly_graph(z_prime, y, 'UMAP of source data', trainer.global_step)
             elif self.logging_tech == "wandb" and not self.plotly:
                 log_sns_plot(
-                    z_prime, preds, "UMAP of train embeddings", trainer.global_step
+                    z_prime, preds, f"{self.algo} predictions on train embeddings", trainer.global_step
                 )
+                if pl_module.train_oracle_mode:
+                    log_sns_plot(z_prime, y, 'UMAP of source data', trainer.global_step)
         return outputs

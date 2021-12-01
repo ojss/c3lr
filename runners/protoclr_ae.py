@@ -37,11 +37,11 @@ def protoclr_ae(
         tau=1.0,
         eval_ways=5,
         clustering_alg=None,
+        clustering_callback=False,
         km_clusters=None,
         km_use_nearest=False,
-        km_n_neighbours=False,
+        km_n_neighbours=30,
         cl_reduction=None,
-        cluster_on_latent=False,
         eval_support_shots=1,
         eval_query_shots=15,
         n_images=None,
@@ -65,8 +65,11 @@ def protoclr_ae(
         use_pacmap=False,
         uuid=None,  # comes from OS should be constant mostly
 ):
+    cluster_on_latent = False if use_umap or use_pacmap else True
+
     pl.seed_everything(42)
     gpus = torch.cuda.device_count()
+
     params = PCLRParamsContainer(
         dataset,
         datapath,
@@ -118,7 +121,7 @@ def protoclr_ae(
 
     if logging == "wandb":
         logger = WandbLogger(
-            project="ProtoCLR+AE",
+            project="ProtoCLR-C",
             config={
                 "batch_size": batch_size,
                 "n_classes": n_classes,
@@ -138,7 +141,7 @@ def protoclr_ae(
                 "clustering_algo": clustering_alg,
                 "cl_reduction": cl_reduction,
                 "clustering_on_latent": cluster_on_latent,
-                "oracle_mode": train_oracle_mode,
+                "oracle_mode": train_oracle_mode if train_oracle_mode and clustering_alg is None else False, # TODO remove complex logic like this
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
                 "umap": use_umap,
@@ -148,13 +151,12 @@ def protoclr_ae(
         )
         logger.watch(model)
         if callbacks:
-            cbs = [
-                EarlyStopping(monitor="val_loss", patience=300, min_delta=0.02),
+            cbs.extend([
                 UMAPCallback(use_plotly=use_plotly),
                 UMAPCallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
                 PCACallback(use_plotly=use_plotly),
                 PCACallbackOnTrain(every_n_steps=50, use_plotly=use_plotly),
-            ]
+            ])
             if ae:
                 dataset_train = UnlabelledDataset(
                     dataset=dataset,
@@ -163,11 +165,22 @@ def protoclr_ae(
                     n_support=1,
                     n_query=3,
                 )
-                cbs.insert(0, WandbImageCallback(get_train_images(dataset_train, 8)))
-        elif patience is not None:
-            cbs = [
-                EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02)
-            ]
+                cbs.append(WandbImageCallback(get_train_images(dataset_train, 8)))
+        if patience is not None:
+            cbs.insert(0, EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02))
+        if clustering_callback:
+            cbs.append(
+                UMAPClusteringCallback(
+                    use_umap=use_umap,
+                    use_pacmap=use_pacmap,
+                    use_plotly=use_plotly,
+                    every_n_steps=50,
+                    clustering=clustering_alg,
+                    km_n_clusters=km_clusters,
+                    cluster_on_latent=cluster_on_latent
+                )
+            )
+
         # should be there no matter what?
         cbs.append(ConfidenceIntervalCallback())
 
@@ -176,7 +189,7 @@ def protoclr_ae(
         dataset_train = UnlabelledDataset(
             dataset=dataset, datapath=datapath, split="train", n_support=1, n_query=3
         )
-        cbs = (
+        cbs.extend(
             [TensorBoardImageCallback(get_train_images(dataset_train, 8))]
             if callbacks and ae
             else []

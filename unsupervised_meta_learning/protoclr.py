@@ -173,7 +173,7 @@ class ProtoCLR(pl.LightningModule):
         tau = self.tau
         loss = 0.0
         emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
-        if self.train_oracle_mode:
+        if self.train_oracle_mode and self.clustering_algo is None:
             y = torch.cat([y_support, y_query], dim=0).detach().cpu().numpy()
         else:
             y = torch.cat([y_support, y_query], dim=1).detach().cpu().flatten().numpy()
@@ -185,7 +185,7 @@ class ProtoCLR(pl.LightningModule):
                     ]  # TODO: make use of this in the loss somewhere?
         # e.g. [50*n_query,2]
         z_query = z[:, ways * self.n_support:, :]
-        if self.train_oracle_mode:
+        if self.train_oracle_mode and self.clustering_algo is None:
             loss = cluster_diff_loss(
                 z,
                 y,

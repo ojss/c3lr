@@ -23,9 +23,9 @@ torch.autograd.set_detect_anomaly(True)
 # profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 pl.seed_everything(42)
 gpus = torch.cuda.device_count()
-train_oracle_mode = False
-train_oracle_shots = 5
-train_oracle_ways = 10
+train_oracle_mode = True
+train_oracle_shots = 20
+train_oracle_ways = 5
 
 params = PCLRParamsContainer(
     "miniimagenet",
@@ -52,8 +52,8 @@ params = PCLRParamsContainer(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    clustering_algo='kmeans',
-    km_clusters=5,
+    clustering_algo='hdbscan',
+    # km_clusters=5,
     km_use_nearest=True,
     km_n_neighbours=30,
     cl_reduction="mean",
@@ -74,11 +74,11 @@ else:
 
 model = ProtoCLR(params)
 
-# logger = WandbLogger(
-#     project="ProtoCLR+AE",
-#     config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
-# )
-# logger.watch(model)
+logger = WandbLogger(
+    project="ProtoCLR+AE",
+    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
+)
+logger.watch(model)
 
 trainer = pl.Trainer(
     # profiler="simple",
@@ -93,11 +93,18 @@ trainer = pl.Trainer(
         # PCACallback(),
         # UMAPCallbackOnTrain(),
         # PCACallbackOnTrain()
-        # UMAPClusteringCallback(every_n_steps=50, cluster_on_latent=True),
+        UMAPClusteringCallback(
+            every_n_steps=50,
+            use_pacmap=True,
+            use_umap=False,
+            cluster_on_latent=True,
+            clustering='hdbscan',
+            km_n_clusters=5
+        ),
     ],
     num_sanity_val_steps=1,
     gpus=gpus,
-    # logger=logger
+    logger=logger
 )
 
 with warnings.catch_warnings():
