@@ -43,6 +43,8 @@ class PCLRParamsContainer:
     ae: bool = False
     clustering_algo: Optional[str] = None
     km_clusters: int = 5
+    km_use_nearest: bool = False
+    km_n_neighbours: bool = 30
     cl_reduction: str = "mean"
     log_images: bool = False
     sup_finetune: bool = True

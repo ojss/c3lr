@@ -8,6 +8,7 @@ __all__ = ['euclidean_distance', 'cosine_similarity', 'get_num_samples', 'get_pr
 # export
 # adapted from the torchmeta code
 import importlib
+import numpy as np
 from functools import partial
 from .nn_utils import mean_from_cluster
 import torch
@@ -167,17 +168,34 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
 def cluster_diff_loss(
         z: torch.Tensor,
         labels,
+        reduced_z: np.ndarray = None,
         similarity="cosine",
+        km_use_nearest = False,
+        clf: cluster.KMeans=None,
+        km_n_neighbours: int=30,
         temperature=0.5,
         reduction="mean",
 ):
-    labels = torch.tensor(labels).type_as(z).long()
-    # TODO: use the probabilities from HDBSCAN and calculate CE
     """
     For each cluster (defined by labels) calculate the cross entropy loss.
         1. Filter embeddings based on clusters - c1, c2, c3, c4
         2. Find similarity between each element within the cluster
+
+    Args:
+        z (torch.Tensor): input torch tensor
+        labels ([type]): labels associated with each tensor from clustering algo
+        similarity (str, optional): Defaults to "cosine".
+        km_use_nearest (bool, optional): Use only the top `km_n_neighbours` to get high dim cluster centres. Defaults to False.
+        clf (cluster.KMeans, optional): kmeans classifer. Defaults to None.
+        temperature (float, optional): Defaults to 0.5.
+        reduction (str, optional): Defaults to "mean". Other option is "pairwise"
+
+    Returns:
+        torch.Tensor: loss value
     """
+    labels = torch.tensor(labels).type_as(z).long()
+    # TODO: use the probabilities from HDBSCAN and calculate CE
+
     if similarity == "cosine":
         f_sim = partial(F.cosine_similarity, dim=-1)
     elif similarity == 'euclidean':
@@ -185,7 +203,7 @@ def cluster_diff_loss(
     loss = torch.tensor(0.).type_as(z)
     z_labels = torch.cat([z.squeeze(0), labels.reshape([z.shape[1], 1])], dim=-1)
 
-    if reduction == 'mean':
+    if reduction == 'mean' and not km_use_nearest:
         tmp = labels.view(labels.size(0), 1).expand(-1, z.squeeze(0).size(1))
 
         unique_labels, labels_count = tmp.unique(dim=0, return_counts=True)
@@ -196,6 +214,18 @@ def cluster_diff_loss(
         dists = euclidean_distance(res.unsqueeze(0), z)
         loss = F.cross_entropy(-dists, labels.unsqueeze(0))
 
+    elif reduction == 'mean' and km_use_nearest:
+        top_n = []
+        kdists = clf.transform(reduced_z)
+        kdists = [kdists[:, c] for c in labels.unique().tolist()]
+        for d in kdists:
+            ind = np.argsort(d)[::][:km_n_neighbours]
+            top_n.append((z[:, ind], labels[ind]))
+        top_n_z = torch.cat([x[0] for x in top_n], dim=1)
+        top_n_lbs = torch.cat([x[1] for x in top_n]).long()
+        res = fast_grouped_mean(top_n_z, top_n_lbs)
+        dists = euclidean_distance(res.unsqueeze(0), z)
+        loss = F.cross_entropy(-dists, labels.unsqueeze(0))
     else:
         for label in labels.unique().tolist():
             tmp = z_labels[z_labels[:, -1] == label][:, :-1]
@@ -206,6 +236,13 @@ def cluster_diff_loss(
 
     return loss
 
+def fast_grouped_mean(z, labels):
+    tmp = labels.view(labels.size(0), 1).expand(-1, z.squeeze(0).size(1))
+    unique_labels, labels_count = tmp.unique(dim=0, return_counts=True)
+    res = torch.zeros_like(unique_labels, dtype=torch.float).scatter_add_(0, tmp, z.squeeze(0))
+    res = res / labels_count.float().unsqueeze(1)
+
+    return res
 
 class HLoss(nn.Module):
     def __init__(self, dim=0) -> None:

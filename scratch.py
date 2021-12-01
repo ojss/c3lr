@@ -52,12 +52,16 @@ params = PCLRParamsContainer(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
-    clustering_algo='hdbscan',
+    clustering_algo='kmeans',
+    km_clusters=5,
+    km_use_nearest=True,
+    km_n_neighbours=30,
     cl_reduction="mean",
     ae=False,
     gamma=.001,
     log_images=True,
-    use_umap=True,
+    use_umap=False,
+    use_pacmap=True,
     seed=42
 
 )
@@ -70,11 +74,11 @@ else:
 
 model = ProtoCLR(params)
 
-logger = WandbLogger(
-    project="ProtoCLR+AE",
-    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
-)
-logger.watch(model)
+# logger = WandbLogger(
+#     project="ProtoCLR+AE",
+#     config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
+# )
+# logger.watch(model)
 
 trainer = pl.Trainer(
     # profiler="simple",
@@ -93,7 +97,7 @@ trainer = pl.Trainer(
     ],
     num_sanity_val_steps=1,
     gpus=gpus,
-    logger=logger
+    # logger=logger
 )
 
 with warnings.catch_warnings():
