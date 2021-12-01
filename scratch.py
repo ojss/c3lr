@@ -36,7 +36,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=100,
+    batch_size=200,
     mode="trainval",
     num_workers=4,
     eval_ways=5,
@@ -52,16 +52,24 @@ params = PCLRParamsContainer(
     encoder_class=Encoder4L,
     lr_decay_step=25000,
     lr_decay_rate=0.5,
+<<<<<<< HEAD
     clustering_algo='hdbscan',
     # km_clusters=5,
     km_use_nearest=True,
     km_n_neighbours=30,
+=======
+    clustering_algo=None,
+>>>>>>> WIP re ranking
     cl_reduction="mean",
     ae=False,
     gamma=.001,
     log_images=True,
+<<<<<<< HEAD
     use_umap=True,
     use_pacmap=False,
+=======
+    use_umap=False,
+>>>>>>> WIP re ranking
     seed=42
 
 )

@@ -286,8 +286,8 @@ class ProtoCLR(pl.LightningModule):
         x = torch.cat([x_support, x_query], 1)
         z, x_hat = self.forward(x)
 
-        loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
-        self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
+        # loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
+        # self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
 
         if self.train_oracle_mode and self.clustering_algo is None:
             # basically leaking info to check if things work in our favor
