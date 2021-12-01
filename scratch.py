@@ -60,8 +60,8 @@ params = PCLRParamsContainer(
     ae=False,
     gamma=.001,
     log_images=True,
-    use_umap=False,
-    use_pacmap=True,
+    use_umap=True,
+    use_pacmap=False,
     seed=42
 
 )
