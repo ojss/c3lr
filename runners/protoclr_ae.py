@@ -21,7 +21,7 @@ from unsupervised_meta_learning.pl_dataloaders import (
 )
 from unsupervised_meta_learning.protoclr import ProtoCLR
 from unsupervised_meta_learning.dataclasses.protoclr_container import (
-    PCLRParamsContainer,
+    PCLRParamsContainer, ReRankerContainer,
 )
 
 
@@ -65,7 +65,11 @@ def protoclr_ae(
         umap_min_dist: float = .25,
         rdim_n_neighbors: int = 50,
         rdim_components: int = 2,
-        uuid=None # comes from OS should be constant mostly
+        rerank_kjrd=False,
+        rrk1=20,
+        rrk2=6,
+        rrlambda=0,
+        uuid=None  # comes from OS should be constant mostly
 ):
     cluster_on_latent = False if use_umap else True
 
@@ -108,6 +112,8 @@ def protoclr_ae(
         umap_min_dist=umap_min_dist,
         rdim_components=rdim_components,
         rdim_n_neighbors=rdim_n_neighbors,
+        rerank_kjrd=rerank_kjrd,
+        re_rank_args=ReRankerContainer(k1=rrk1, k2=rrk2, lambda_value=rrlambda)
     )
 
     if (
@@ -122,7 +128,7 @@ def protoclr_ae(
     model = ProtoCLR(params)
 
     cbs = []
-
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     if logging == "wandb":
         logger = WandbLogger(
             project="ProtoCLR-C",
@@ -145,12 +151,17 @@ def protoclr_ae(
                 "clustering_algo": clustering_alg,
                 "cl_reduction": cl_reduction,
                 "clustering_on_latent": cluster_on_latent,
-                "oracle_mode": train_oracle_mode if train_oracle_mode and clustering_alg is None else False, # TODO remove complex logic like this
+                # TODO remove complex logic like this
+                "oracle_mode": train_oracle_mode if train_oracle_mode and clustering_alg is None else False,
                 "train_oracle_ways": train_oracle_ways,
                 "train_oracle_shots": train_oracle_shots,
                 "umap": use_umap,
                 "KM Clusters": km_clusters,
-                "timestamp": str(datetime.now()),
+                "Re-Rank": rerank_kjrd,
+                "RRK1": rrk1,
+                "RRK2": rrk2,
+                "RRLambda": rrlambda,
+                "timestamp": timestamp,
             },
         )
         logger.watch(model)
@@ -176,7 +187,6 @@ def protoclr_ae(
             cbs.append(
                 UMAPClusteringCallback(
                     use_umap=use_umap,
-                    use_pacmap=use_pacmap,
                     use_plotly=use_plotly,
                     every_n_steps=50,
                     clustering=clustering_alg,
@@ -200,7 +210,7 @@ def protoclr_ae(
         )
 
     ckpt_path = os.path.join(
-        ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{str(datetime.now())}"
+        ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{timestamp}"
     )
 
     ckpt_callback = ModelCheckpoint(

@@ -30,12 +30,12 @@ class UMAPCallbackOnTrain(pl.Callback):
         self.plotly = use_plotly
 
     def on_train_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
         if trainer.global_step % self.every_n_steps == 0:
             data = batch["data"]
@@ -50,7 +50,7 @@ class UMAPCallbackOnTrain(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support :]
+            x_query = data[:, :, pl_module.n_support:]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
@@ -125,11 +125,11 @@ class UMAPCallbackOnTrain(pl.Callback):
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
     def __init__(
-        self,
-        every_n_epochs=10,
-        logger="wandb",
-        semi_supervised_umap=False,
-        use_plotly=True,
+            self,
+            every_n_epochs=10,
+            logger="wandb",
+            semi_supervised_umap=False,
+            use_plotly=True,
     ) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
@@ -138,12 +138,12 @@ class UMAPCallback(pl.Callback):
         self.plotly = use_plotly
 
     def on_validation_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
         x_train, y_train = batch["train"]
         x_test, y_test = batch["test"]
@@ -213,15 +213,14 @@ class UMAPCallback(pl.Callback):
 
 class UMAPClusteringCallback(pl.Callback):
     def __init__(
-        self,
-        use_umap=True,
-        use_pacmap=False,
-        logging_tech="wandb",
-        every_n_steps=90,
-        use_plotly=True,
-        clustering="hdbscan",
-        km_n_clusters=5,
-        cluster_on_latent=False,
+            self,
+            use_umap=True,
+            logging_tech="wandb",
+            every_n_steps=90,
+            use_plotly=True,
+            clustering="hdbscan",
+            km_n_clusters=5,
+            cluster_on_latent=False,
     ) -> None:
         super().__init__()
         self.logging_tech = logging_tech
@@ -230,19 +229,15 @@ class UMAPClusteringCallback(pl.Callback):
         self.algo = clustering
         self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)
         self.cluster_on_latent = cluster_on_latent
-        if use_umap and not use_pacmap:
-            self.mapper = 'umap'
-        else:
-            self.mapper = 'pacmap'
 
     def on_train_batch_end(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        outputs,
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
 
         if trainer.global_step % self.every_n_steps == 0:
@@ -288,20 +283,13 @@ class UMAPClusteringCallback(pl.Callback):
                 z, _ = pl_module(x)
                 pl_module.train()
             z = z.detach().squeeze(0).cpu().numpy()
-            if self.mapper == 'umap':
-                mapper = umap.UMAP(
-                    random_state=42,
-                    n_components=pl_module.params.rdim_components,
-                    min_dist=pl_module.params.umap_min_dist,
-                    n_neighbors=pl_module.params.rdim_n_neighbors,
-                )
-                z_prime = mapper.fit_transform(z, y=y)
-            elif self.mapper == 'pacmap':
-                mapper = pacmap.PaCMAP(
-                    n_dims=pl_module.params.rdim_components,
-                    n_neighbors=50
-                )
-                z_prime = mapper.fit_transform(z)
+            mapper = umap.UMAP(
+                random_state=42,
+                n_components=pl_module.params.rdim_components,
+                min_dist=pl_module.params.umap_min_dist,
+                n_neighbors=pl_module.params.rdim_n_neighbors,
+            )
+            z_prime = mapper.fit_transform(z, y=y)
 
             _, preds, _ = self.clusterer(z if self.cluster_on_latent else z_prime)
 

@@ -70,4 +70,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --rdim_n_neighbors=50 \
   --rdim_components= 2 \
   --rerank_kjrd=True \
+  --rrk1=20 \
+  --rrk2=6 \
+  --rrlambda=0 \
   --uuid=$rnd_uuid
