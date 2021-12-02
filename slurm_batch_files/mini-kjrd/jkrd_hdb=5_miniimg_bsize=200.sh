@@ -68,7 +68,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --use_umap=True \
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
-  --rdim_components= 2 \
+  --rdim_components=2 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \

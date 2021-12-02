@@ -110,8 +110,8 @@ def protoclr_ae(
         num_workers=num_workers,
         use_umap=use_umap,
         umap_min_dist=umap_min_dist,
-        rdim_components=rdim_components,
-        rdim_n_neighbors=rdim_n_neighbors,
+        rdim_components=int(rdim_components),
+        rdim_n_neighbors=int(rdim_n_neighbors),
         rerank_kjrd=rerank_kjrd,
         re_rank_args=ReRankerContainer(k1=rrk1, k2=rrk2, lambda_value=rrlambda)
     )

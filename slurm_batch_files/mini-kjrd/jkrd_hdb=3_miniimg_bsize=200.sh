@@ -45,10 +45,10 @@ source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 # km_clusters below fulfills the role of hdb_min_cluster_size
 
-srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../../runner.py protoclr_ae miniimagenet "./data/untarred/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
-  --batch_size=200 \
+  --batch_size=100 \
   --num_workers=6 \
   --eval-ways=5 \
   --eval_support_shots=5 \
@@ -68,7 +68,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --use_umap=True \
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
-  --rdim_components= 2 \
+  --rdim_components=2 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \
