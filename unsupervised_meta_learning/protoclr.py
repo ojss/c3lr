@@ -198,9 +198,9 @@ class ProtoCLR(pl.LightningModule):
             if self.umap == True:
                 reduced_z = umap.UMAP(
                     random_state=self.params.seed,
-                    n_components=3,
-                    min_dist=0.25,
-                    n_neighbors=50
+                    n_components=self.params.rdim_components,
+                    min_dist=self.params.umap_min_dist,
+                    n_neighbors=self.params.rdim_n_neighbors
                 ).fit_transform(
                     emb_list, 
                     y=y

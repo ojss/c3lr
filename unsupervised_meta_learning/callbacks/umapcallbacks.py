@@ -291,14 +291,14 @@ class UMAPClusteringCallback(pl.Callback):
             if self.mapper == 'umap':
                 mapper = umap.UMAP(
                     random_state=42,
-                    n_components=3 if self.plotly is True else 2,
-                    min_dist=0.25,
-                    n_neighbors=50,
+                    n_components=pl_module.params.rdim_components,
+                    min_dist=pl_module.params.umap_min_dist,
+                    n_neighbors=pl_module.params.rdim_n_neighbors,
                 )
                 z_prime = mapper.fit_transform(z, y=y)
             elif self.mapper == 'pacmap':
                 mapper = pacmap.PaCMAP(
-                    n_dims=3 if self.plotly is True else 2,
+                    n_dims=pl_module.params.rdim_components,
                     n_neighbors=50
                 )
                 z_prime = mapper.fit_transform(z)

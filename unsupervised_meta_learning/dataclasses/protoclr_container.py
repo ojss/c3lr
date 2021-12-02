@@ -57,6 +57,9 @@ class PCLRParamsContainer:
     train_oracle_shots: Optional[int] = None
     use_umap: bool = False
     use_pacmap: bool = False
+    umap_min_dist: float = .25
+    rdim_n_neighbors: int = 50
+    rdim_components: int = 2
 
     def __post_init__(self):
         if self.dataset == "omniglot":
