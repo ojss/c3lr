@@ -25,7 +25,7 @@ pl.seed_everything(42)
 gpus = torch.cuda.device_count()
 train_oracle_mode = True
 train_oracle_shots = 20
-train_oracle_ways = 5
+train_oracle_ways = 10
 
 params = PCLRParamsContainer(
     "miniimagenet",
@@ -74,11 +74,11 @@ else:
 
 model = ProtoCLR(params)
 
-logger = WandbLogger(
-    project="ProtoCLR+AE",
-    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
-)
-logger.watch(model)
+# logger = WandbLogger(
+#     project="ProtoCLR+AE",
+#     config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
+# )
+# logger.watch(model)
 
 trainer = pl.Trainer(
     # profiler="simple",
@@ -93,18 +93,18 @@ trainer = pl.Trainer(
         # PCACallback(),
         # UMAPCallbackOnTrain(),
         # PCACallbackOnTrain()
-        UMAPClusteringCallback(
-            every_n_steps=50,
-            use_pacmap=True,
-            use_umap=False,
-            cluster_on_latent=True,
-            clustering='hdbscan',
-            km_n_clusters=5
-        ),
+        # UMAPClusteringCallback(
+        #     every_n_steps=50,
+        #     use_pacmap=True,
+        #     use_umap=False,
+        #     cluster_on_latent=True,
+        #     clustering='hdbscan',
+        #     km_n_clusters=5
+        # ),
     ],
     num_sanity_val_steps=1,
     gpus=gpus,
-    logger=logger
+    # logger=logger
 )
 
 with warnings.catch_warnings():

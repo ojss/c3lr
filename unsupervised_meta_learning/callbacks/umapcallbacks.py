@@ -268,18 +268,18 @@ class UMAPClusteringCallback(pl.Callback):
                 labels = batch["labels"]
                 y_support = labels[:, 0]
                 y_query = labels[:, 1:].flatten()
-                y = torch.cat([y_support, y_query]).cpu().numpy()
-            else:
-                y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
-                y_query = y_query.repeat(batch_size, 1, pl_module.n_query)
-                y_query = y_query.view(batch_size, -1).type_as(x_query).flatten()
+                true_y = torch.cat([y_support, y_query]).cpu().numpy()
 
-                y_support = (
-                    torch.arange(ways).unsqueeze(0).unsqueeze(2)
-                )  # batch and shot dim
-                y_support = y_support.repeat(batch_size, 1, pl_module.n_support)
-                y_support = y_support.view(batch_size, -1).type_as(x_support).flatten()
-                y = torch.cat([y_support, y_query]).cpu().numpy()
+            y_query = torch.arange(ways).unsqueeze(0).unsqueeze(2)  # batch and shot dim
+            y_query = y_query.repeat(batch_size, 1, pl_module.n_query)
+            y_query = y_query.view(batch_size, -1).type_as(x_query).flatten()
+
+            y_support = (
+                torch.arange(ways).unsqueeze(0).unsqueeze(2)
+            )  # batch and shot dim
+            y_support = y_support.repeat(batch_size, 1, pl_module.n_support)
+            y_support = y_support.view(batch_size, -1).type_as(x_support).flatten()
+            y = torch.cat([y_support, y_query]).cpu().numpy()
 
             x = torch.cat([x_support, x_query], dim=1)
 
@@ -310,11 +310,24 @@ class UMAPClusteringCallback(pl.Callback):
                     z_prime, preds, f"{self.algo} predictions on train embeddings", trainer.global_step
                 )
                 if pl_module.train_oracle_mode:
-                    log_plotly_graph(z_prime, y, 'UMAP of source data', trainer.global_step)
+                    log_plotly_graph(
+                        z_prime,
+                        true_y if pl_module.train_oracle_mode else y,
+                        'UMAP of source data',
+                        trainer.global_step
+                    )
             elif self.logging_tech == "wandb" and not self.plotly:
                 log_sns_plot(
-                    z_prime, preds, f"{self.algo} predictions on train embeddings", trainer.global_step
+                    z_prime,
+                    preds,
+                    f"{self.algo} predictions on train embeddings",
+                    trainer.global_step
                 )
                 if pl_module.train_oracle_mode:
-                    log_sns_plot(z_prime, y, 'UMAP of source data', trainer.global_step)
+                    log_sns_plot(
+                        z_prime,
+                        true_y if pl_module.train_oracle_mode else y,
+                        'UMAP of source data',
+                        trainer.global_step
+                    )
         return outputs
