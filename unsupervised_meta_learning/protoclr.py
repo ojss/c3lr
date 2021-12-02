@@ -9,6 +9,7 @@ __all__ = [
 # export
 import copy
 import importlib
+from dataclasses import asdict
 
 import numpy as np
 import pytorch_lightning as pl
@@ -18,10 +19,10 @@ import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder
 from torch.autograd import Variable
 from tqdm.auto import tqdm
-import pacmap
-from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 
-from .proto_utils import (AttnEncoder4L, Decoder4L, Encoder4L, cluster_diff_loss,
+from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
+from unsupervised_meta_learning.re_rank import re_ranking2
+from .proto_utils import (AttnEncoder4L, cluster_diff_loss,
                           clusterer, get_prototypes, prototypical_loss)
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
@@ -107,8 +108,9 @@ class ProtoCLR(pl.LightningModule):
         self.train_oracle_shots = params.train_oracle_shots
 
         self.umap = params.use_umap
-        self.pacmap = params.use_pacmap
+        self.rerank = params.rerank_kjrd
         self.km_clusters = params.km_clusters
+
         if self.train_oracle_mode is True and params.train_oracle_ways is not None and params.train_oracle_shots is not None:
             self.no_unsqueeze_flg = True
         else:
@@ -117,6 +119,7 @@ class ProtoCLR(pl.LightningModule):
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
 
+        # TODO: maybe turn it on again?
         # self.automatic_optimization = False
 
     def configure_optimizers(self):
@@ -172,19 +175,12 @@ class ProtoCLR(pl.LightningModule):
     def _get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
         tau = self.tau
         loss = 0.0
-        emb_list = F.normalize(z.squeeze(0).detach()).cpu().numpy()
+        z_numpy = F.normalize(z.squeeze(0).detach()).cpu().numpy()
         if self.train_oracle_mode and self.clustering_algo is None:
             y = torch.cat([y_support, y_query], dim=0).detach().cpu().numpy()
         else:
             y = torch.cat([y_support, y_query], dim=1).detach().cpu().flatten().numpy()
 
-        #
-        # e.g. [50*n_support,2]
-        z_support = z[
-                    :, : ways * self.n_support, :
-                    ]  # TODO: make use of this in the loss somewhere?
-        # e.g. [50*n_query,2]
-        z_query = z[:, ways * self.n_support:, :]
         if self.train_oracle_mode and self.clustering_algo is None:
             loss = cluster_diff_loss(
                 z,
@@ -195,26 +191,31 @@ class ProtoCLR(pl.LightningModule):
                 reduction=self.cl_reduction
             )
         else:
-            if self.umap == True:
-                reduced_z = umap.UMAP(
+            if self.umap:
+                clusterer_inp = umap.UMAP(
                     random_state=self.params.seed,
                     n_components=self.params.rdim_components,
                     min_dist=self.params.umap_min_dist,
                     n_neighbors=self.params.rdim_n_neighbors
                 ).fit_transform(
-                    emb_list, 
+                    z_numpy,
                     y=y
                 )  # (n_samples, 3)
-            elif self.pacmap == True:
-                reduced_z = pacmap.PaCMAP(n_dims=3, n_neighbors=50).fit_transform(emb_list)
             else:
-                reduced_z = emb_list # technically not reduced
+                clusterer_inp = z_numpy  # technically not reduced
+
+            if self.rerank and self.clustering_algo == 'hdbscan':
+                # only works with hdbscan otherwise useless
+                clusterer_inp = re_ranking2(clusterer_inp, clusterer_inp, **asdict(self.params.re_rank_args))
+
             if self.clustering_algo == "kmeans":
-                clf, predicted_labels, _ = clusterer(reduced_z, n_clusters=self.km_clusters, algo="kmeans")
+                clf, predicted_labels, _ = clusterer(clusterer_inp,
+                                                     n_clusters=self.km_clusters,
+                                                     algo="kmeans")
                 loss = cluster_diff_loss(
                     z,
                     predicted_labels,
-                    reduced_z,
+                    clusterer_inp,
                     similarity=self.distance,
                     clf=clf,
                     km_use_nearest=self.params.km_use_nearest,
@@ -224,7 +225,10 @@ class ProtoCLR(pl.LightningModule):
                 )
             elif self.clustering_algo == "hdbscan":
                 clf, predicted_labels, probs = clusterer(
-                    reduced_z, algo="hdbscan", hdbscan_metric="euclidean"
+                    clusterer_inp.astype(float),
+                    algo="hdbscan",
+                    metric="euclidean" if not self.rerank else "precomputed",
+                    hdb_min_cluster_size=self.params.km_clusters
                 )
                 predicted_labels = torch.from_numpy(predicted_labels).type_as(z)
                 if -1 in predicted_labels:
@@ -286,15 +290,14 @@ class ProtoCLR(pl.LightningModule):
         x = torch.cat([x_support, x_query], 1)
         z, x_hat = self.forward(x)
 
-        # loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
-        # self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
+        loss, accuracy = self.calculate_protoclr_loss(z, y_support, y_query, ways)
+        self.log_dict({"clr_loss": loss.item()}, prog_bar=True)
 
         if self.train_oracle_mode and self.clustering_algo is None:
             # basically leaking info to check if things work in our favor
             # works only for omniglot at the moment
             labels = batch["labels"]
             if not self.no_unsqueeze_flg:
-                # TODO: see if these .cpu calls need to go
                 y_support = labels[:, 0].cpu()
                 y_query = labels[:, 1:].flatten().cpu()
                 lb_enc = LabelEncoder()

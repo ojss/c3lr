@@ -62,10 +62,12 @@ def protoclr_ae(
         patience=200,
         use_plotly=True,
         use_umap=True,
-        use_pacmap=False,
-        uuid=None,  # comes from OS should be constant mostly
+        umap_min_dist: float = .25,
+        rdim_n_neighbors: int = 50,
+        rdim_components: int = 2,
+        uuid=None # comes from OS should be constant mostly
 ):
-    cluster_on_latent = False if use_umap or use_pacmap else True
+    cluster_on_latent = False if use_umap else True
 
     pl.seed_everything(42)
     gpus = torch.cuda.device_count()
@@ -103,7 +105,9 @@ def protoclr_ae(
         train_oracle_shots=train_oracle_shots,
         num_workers=num_workers,
         use_umap=use_umap,
-        use_pacmap=use_pacmap
+        umap_min_dist=umap_min_dist,
+        rdim_components=rdim_components,
+        rdim_n_neighbors=rdim_n_neighbors,
     )
 
     if (
