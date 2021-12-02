@@ -59,10 +59,10 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--train_oracle_mode=True \
 	--train_oracle_ways=10 \
 	--train_oracle_shots=20 \
-	--km_clusters=10 \ # yes giving true clusters for kmeans
+	--km_clusters=10 \
 	--km_use_nearest=True \
 	--km_n_neighbours=25 \
-	--callbacks=False \ # other callbacks
+	--callbacks=False \
 	--clustering_callback=True \
 	--patience=200 \
 	--no_aug_support=True \

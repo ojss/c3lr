@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=35:00:00
+#SBATCH --time=30:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -44,28 +44,26 @@ rnd_uuid=$(uuidgen)
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
-        --lr=1e-3 \
-        --inner_lr=1e-3  \
-        --num_workers=6 \
-        --eval-ways=5 \
-        --eval_support_shots=5 \
-        --distance='euclidean' \
-        --logging='wandb' \
-        --clustering_alg="kmeans" \
-        --cl_reduction="mean" \
-        --cluster_on_latent=False \
-        --ae=False \
-        --profiler='simple'  \
-        --train_oracle_mode=True \
-        --train_oracle_ways=10 \
-        --train_oracle_shots=20 \
-        --km_clusters=10 \
-        --km_use_nearest=False \
-        --callbacks=False \
-        --clustering_callback=True \
-        --patience=200 \
-        --no_aug_support=True \
-        --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-        --use_umap=True \
-        --use_pacmap=False \
-        --uuid=$rnd_uuid
+	--lr=1e-3 \
+	--inner_lr=1e-3  \
+	--batch_size=200 \
+	--num_workers=6 \
+	--eval-ways=5 \
+	--eval_support_shots=5 \
+	--distance='euclidean' \
+	--logging='wandb' \
+	--clustering_alg="kmeans" \
+	--km_clusters=25 \
+	--km_use_nearest=True \
+	--km_n_neighbours=50 \
+	--cl_reduction="mean" \
+	--cluster_on_latent=False \
+	--ae=False \
+	--profiler='simple'  \
+	--train_oracle_mode=False \
+	--callbacks=False \
+	--patience=200 \
+	--no_aug_support=True \
+	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
+	--use_umap=True \
+	--uuid=$rnd_uuid
