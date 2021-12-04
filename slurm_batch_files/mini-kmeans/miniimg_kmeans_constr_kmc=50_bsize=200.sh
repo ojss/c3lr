@@ -55,7 +55,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--clustering_alg="kmeans" \
 	--km_clusters=50 \
 	--km_use_nearest=True \
-	--km_n_neighbours=20 \
+	--km_n_neighbours=50 \
 	--cl_reduction="mean" \
 	--cluster_on_latent=False \
 	--ae=False \

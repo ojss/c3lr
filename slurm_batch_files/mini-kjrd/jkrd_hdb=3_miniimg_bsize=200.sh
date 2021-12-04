@@ -48,7 +48,7 @@ source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
-  --batch_size=100 \
+  --batch_size=200 \
   --num_workers=6 \
   --eval-ways=5 \
   --eval_support_shots=5 \
