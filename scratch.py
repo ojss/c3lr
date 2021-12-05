@@ -23,7 +23,7 @@ torch.autograd.set_detect_anomaly(True)
 # profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
 pl.seed_everything(42)
 gpus = torch.cuda.device_count()
-train_oracle_mode = True
+train_oracle_mode = False
 train_oracle_shots = 20
 train_oracle_ways = 10
 
@@ -36,7 +36,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=100,
+    batch_size=150,
     mode="trainval",
     num_workers=4,
     eval_ways=5,
@@ -53,17 +53,16 @@ params = PCLRParamsContainer(
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     clustering_algo='hdbscan',
-    # km_clusters=5,
-    km_use_nearest=True,
+    km_clusters=8,
+    km_use_nearest=False,
     km_n_neighbours=30,
     cl_reduction="mean",
     ae=False,
     gamma=.001,
     log_images=True,
     use_umap=True,
-    use_pacmap=False,
+    rerank_kjrd=True,
     seed=42
-
 )
 
 if train_oracle_mode and train_oracle_shots is not None and train_oracle_ways is not None:

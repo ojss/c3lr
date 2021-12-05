@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearnex import patch_sklearn
+
 patch_sklearn()
 from sklearn import cluster
 
@@ -94,7 +95,6 @@ def get_prototypes(self, emb, targets, num_classes):
     prototypes = emb.new_zeros((batch_size, num_classes, emb_size))
     indices = targets.unsqueeze(-1).expand_as(emb)
 
-    
     prototypes = prototypes.scatter_add(1, indices, emb).div(num_samples)
 
     return prototypes
@@ -146,7 +146,16 @@ def prototypical_loss(prototypes, embeddings, targets,
 
 
 # Cell
-def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
+def clusterer(z, algo='kmeans', n_clusters=5, metric='euclidean', hdb_min_cluster_size=4):
+    """
+    Clusters the points
+    :param z: The reduced dataset or the distances
+    :param algo: kmeans or hdbscan
+    :param n_clusters: n_clusters for kmeans
+    :param hdb_min_cluster_size: hdbscan min cluster size
+    :param metric: applies only to hdbscan
+    :return:
+    """
     predicted_labels = None
     probs = None
     if algo == 'kmeans':
@@ -154,13 +163,12 @@ def clusterer(z, algo='kmeans', n_clusters=5, hdbscan_metric='euclidean'):
         predicted_labels = clf.fit_predict(z)
     elif algo == 'hdbscan':
         if cuml_details is not None:
-            clf = hdbscan.HDBSCAN(metric=hdbscan_metric, min_cluster_size=4)
+            clf = hdbscan.HDBSCAN(metric=metric, min_cluster_size=hdb_min_cluster_size)
         else:
-            clf = hdbscan.HDBSCAN(metric=hdbscan_metric, min_cluster_size=4, core_dist_n_jobs=4)
+            clf = hdbscan.HDBSCAN(metric=metric, min_cluster_size=hdb_min_cluster_size, core_dist_n_jobs=4)
         clf.fit(z)
         predicted_labels = clf.labels_
         probs = clf.probabilities_
-
     return clf, predicted_labels, probs
 
 
@@ -170,9 +178,9 @@ def cluster_diff_loss(
         labels,
         reduced_z: np.ndarray = None,
         similarity="cosine",
-        km_use_nearest = False,
-        clf: cluster.KMeans=None,
-        km_n_neighbours: int=30,
+        km_use_nearest=False,
+        clf: cluster.KMeans = None,
+        km_n_neighbours: int = 30,
         temperature=0.5,
         reduction="mean",
 ):
@@ -236,6 +244,7 @@ def cluster_diff_loss(
 
     return loss
 
+
 def fast_grouped_mean(z, labels):
     tmp = labels.view(labels.size(0), 1).expand(-1, z.squeeze(0).size(1))
     unique_labels, labels_count = tmp.unique(dim=0, return_counts=True)
@@ -243,6 +252,7 @@ def fast_grouped_mean(z, labels):
     res = res / labels_count.float().unsqueeze(1)
 
     return res
+
 
 class HLoss(nn.Module):
     def __init__(self, dim=0) -> None:
