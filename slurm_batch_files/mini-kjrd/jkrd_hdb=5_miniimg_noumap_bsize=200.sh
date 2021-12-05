@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=30:00:00
+#SBATCH --time=35:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=26000
+#SBATCH --mem=32000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -43,27 +43,34 @@ rnd_uuid=$(uuidgen)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
+# km_clusters below fulfills the role of hdb_min_cluster_size
+
 srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
-	--lr=1e-3 \
-	--inner_lr=1e-3  \
-	--batch_size=200 \
-	--num_workers=6 \
-	--eval-ways=5 \
-	--eval_support_shots=5 \
-	--distance='euclidean' \
-	--logging='wandb' \
-	--clustering_alg="kmeans" \
-	--km_clusters=25 \
-	--km_use_nearest=True \
-	--km_n_neighbours=50 \
-	--cl_reduction="mean" \
-	--cluster_on_latent=False \
-	--ae=False \
-	--profiler='simple'  \
-	--train_oracle_mode=False \
-	--callbacks=False \
-	--patience=200 \
-	--no_aug_support=True \
-	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-	--use_umap=True \
-	--uuid=$rnd_uuid
+  --lr=1e-3 \
+  --inner_lr=1e-3 \
+  --batch_size=200 \
+  --num_workers=6 \
+  --eval-ways=5 \
+  --eval_support_shots=5 \
+  --distance='euclidean' \
+  --logging='wandb' \
+  --clustering_alg="hdbscan" \
+  --km_clusters=5 \
+  --cl_reduction="mean" \
+  --cluster_on_latent=False \
+  --ae=False \
+  --profiler='simple' \
+  --train_oracle_mode=False \
+  --callbacks=False \
+  --patience=200 \
+  --no_aug_support=True \
+  --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
+  --use_umap=False \
+  --umap_min_dist=0.25 \
+  --rdim_n_neighbors=50 \
+  --rdim_components=2 \
+  --rerank_kjrd=True \
+  --rrk1=20 \
+  --rrk2=6 \
+  --rrlambda=0 \
+  --uuid=$rnd_uuid
