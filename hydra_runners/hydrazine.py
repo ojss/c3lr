@@ -50,13 +50,27 @@ ParamsConf = builds(
     distance="euclidean",
     tau=1.0,
     ae=False,
-    clustering_algo=None,
-    cl_reduction="mean",
+    # Clustering parameters
+    clustering_algo='hdbscan'
+    km_clusters=5  # !IMP: doubles as the parameter for hdb_min_cluster_size TODO: correct the name
+    km_use_neares=False
+    km_n_neighbours=50
+    cl_reduction="mean"
+
     log_images=False,
     train_oracle_mode=False,
     train_oracle_ways=10,
     train_oracle_shots=20,
-    use_entropy=False,
+
+    # UMAP settings
+    use_umap=False
+    umap_min_dist=.25
+    rdim_n_neighbors=50
+    rdim_components=2
+
+    # ReRanker opts
+    rerank_kjrd=True
+
     ckpt_dir="./ckpts",
     zen_partial=True,
     populate_full_signature=True,
