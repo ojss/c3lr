@@ -199,7 +199,7 @@ class ProtoCLR(pl.LightningModule):
                     n_neighbors=self.params.rdim_n_neighbors
                 ).fit_transform(
                     z_numpy,
-                    y=y
+                    # y=y
                 )  # (n_samples, 3)
             else:
                 clusterer_inp = z_numpy  # technically not reduced
