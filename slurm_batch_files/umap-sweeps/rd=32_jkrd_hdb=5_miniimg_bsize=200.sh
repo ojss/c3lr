@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=12:00:00
+#SBATCH --time=48:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=26000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -57,6 +57,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --clustering_alg="hdbscan" \
   --km_clusters=5 \
   --cl_reduction="mean" \
+  --cluster_on_latent=False \
   --ae=False \
   --profiler='simple' \
   --train_oracle_mode=False \
@@ -64,10 +65,10 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-  --use_umap=False \
+  --use_umap=True \
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
-  --rdim_components=2 \
+  --rdim_components=32 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \

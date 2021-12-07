@@ -1,6 +1,7 @@
 slurm_batch_files/**/*.out
 slurm_batch_files/**/ckpts/*
 wandb/
+multirun/
 data/untarred/*
 data/*
 !data/tars/
