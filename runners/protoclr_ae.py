@@ -218,7 +218,7 @@ def protoclr_ae(
         mode="max",
         dirpath=ckpt_path,
         filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
-        every_n_epochs=5,
+        every_n_epochs=1,
         save_top_k=20,
     )
     cbs.append(ckpt_callback)
