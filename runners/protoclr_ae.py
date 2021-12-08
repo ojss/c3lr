@@ -28,6 +28,7 @@ from unsupervised_meta_learning.dataclasses.protoclr_container import (
 def protoclr_ae(
         dataset,
         datapath,
+        merge_train_val=False,
         lr=1e-3,
         inner_lr=1e-3,
         gamma=1.0,
@@ -79,6 +80,7 @@ def protoclr_ae(
     params = PCLRParamsContainer(
         dataset,
         datapath,
+        merge_train_val=merge_train_val,
         seed=42,
         gpus=gpus,
         lr=lr,

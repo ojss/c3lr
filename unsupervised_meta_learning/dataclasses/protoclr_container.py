@@ -86,6 +86,7 @@ class PCLRParamsContainer:
         if self.dataset == "omniglot":
             self.num_input_channels = 1
             self.decoder_class = Decoder4L
+            self.merge_train_val = True
         else:
             self.num_input_channels = 3
             self.decoder_class = Decoder4L4Mini
