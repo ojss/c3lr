@@ -54,7 +54,6 @@ srun python ../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervi
 	--tau=1.0 \
 	--logging='wandb' \
 	--clustering_alg="None" \
-	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
 	--train_oracle_mode=False \

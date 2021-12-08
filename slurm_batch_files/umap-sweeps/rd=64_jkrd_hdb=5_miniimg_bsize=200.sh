@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:v100
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=42:00:00
+#SBATCH --time=48:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -68,7 +68,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --use_umap=True \
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
-  --rdim_components=2 \
+  --rdim_components=64 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \

@@ -337,7 +337,7 @@ class ProtoCLR(pl.LightningModule):
         # opt.step()
         # sch.step()
 
-        self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True)
+        self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True, on_epoch=True)
 
         return {"loss": loss, "train_accuracy": accuracy}
 

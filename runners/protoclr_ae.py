@@ -182,7 +182,7 @@ def protoclr_ae(
                 )
                 cbs.append(WandbImageCallback(get_train_images(dataset_train, 8)))
         if patience is not None:
-            cbs.insert(0, EarlyStopping(monitor="val_accuracy", patience=patience, min_delta=0.02))
+            cbs.insert(0, EarlyStopping(monitor="train_accuracy", patience=patience, min_delta=0.02))
         if clustering_callback:
             cbs.append(
                 UMAPClusteringCallback(
