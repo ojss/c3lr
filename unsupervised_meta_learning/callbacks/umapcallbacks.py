@@ -230,11 +230,10 @@ class UMAPConstantInput(pl.Callback):
         self.algo = clustering
         self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)
         self.cluster_on_latent = cluster_on_latent
-    
-    def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        input_imgs = self.input_images.to(pl_module.device).unsqueeze(0)
+    def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int, dataloader_idx: int) -> None:
         if trainer.global_step % self.every_n_steps != 0:
             return
+        input_imgs = self.input_images.to(pl_module.device).unsqueeze(0)
         with torch.no_grad():
             pl_module.eval()
             # these set of input images do not change
