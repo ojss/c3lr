@@ -195,7 +195,7 @@ def protoclr_ae(
                     n_query=3,
                     no_aug_support=True,
                     train_oracle_mode=False,
-                    train_oracle_shots=5,
+                    train_oracle_shots=20,
                     train_oracle_ways=5
                 )
             # cbs.append(
