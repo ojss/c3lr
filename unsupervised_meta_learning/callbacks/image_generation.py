@@ -3,9 +3,26 @@ import torch
 import wandb
 from torchvision.utils import make_grid
 
+from unsupervised_meta_learning.pl_dataloaders import OracleDataset, UnlabelledDataset
+
 
 def get_train_images(ds, num):
-    return torch.stack([ds[i]["data"][0] for i in range(num)], dim=0)
+    if isinstance(ds, UnlabelledDataset):
+        res =  torch.stack([ds[i]["data"][0] for i in range(num)], dim=0)
+    elif isinstance(ds, OracleDataset):
+        data = ds[0]['data']
+        labels = ds[0]['labels']
+        
+# Divide into support and query shots
+        x_support = data[:, :1].reshape(-1, *data.shape[-3: ])
+        x_query = data[:, 1:].reshape(-1, *data.shape[-3: ])
+        # # e.g. [1,50*n_query,*(3,84,84)]
+        x = torch.cat([x_support, x_query])
+        res = {
+            'x': x,
+            'y': labels
+        }
+    return res
 
 
 class WandbImageCallback(pl.Callback):

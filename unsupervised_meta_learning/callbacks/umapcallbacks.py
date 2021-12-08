@@ -1,18 +1,17 @@
 import importlib
-from typing import Any
 from functools import partial
-import pacmap
+from typing import Any
 
+import matplotlib.pyplot as plt
 import plotly.express as px
 import pytorch_lightning as pl
+import seaborn as sns
 import torch
 import torch.functional as F
 import wandb
-from sklearn import cluster
-import matplotlib.pyplot as plt
-import seaborn as sns
-from ..proto_utils import clusterer
+
 from ..common.utils import log_plotly_graph, log_sns_plot
+from ..proto_utils import clusterer
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
@@ -21,6 +20,7 @@ if (cuml_details := importlib.util.find_spec("cuml")) is not None:
 else:
     import umap
 
+__all__ = ['UMAPCallbackOnTrain', 'UMAPCallback', 'UMAPConstantInput', 'UMAPClusteringCallback']
 
 class UMAPCallbackOnTrain(pl.Callback):
     def __init__(self, logging_tech="wandb", every_n_steps=10, use_plotly=True) -> None:
@@ -30,12 +30,12 @@ class UMAPCallbackOnTrain(pl.Callback):
         self.plotly = use_plotly
 
     def on_train_batch_start(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            batch: Any,
-            batch_idx: int,
-            dataloader_idx: int,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         if trainer.global_step % self.every_n_steps == 0:
             data = batch["data"]
@@ -50,7 +50,7 @@ class UMAPCallbackOnTrain(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support:]
+            x_query = data[:, :, pl_module.n_support :]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
@@ -125,11 +125,11 @@ class UMAPCallbackOnTrain(pl.Callback):
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
     def __init__(
-            self,
-            every_n_epochs=10,
-            logger="wandb",
-            semi_supervised_umap=False,
-            use_plotly=True,
+        self,
+        every_n_epochs=10,
+        logger="wandb",
+        semi_supervised_umap=False,
+        use_plotly=True,
     ) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
@@ -138,12 +138,12 @@ class UMAPCallback(pl.Callback):
         self.plotly = use_plotly
 
     def on_validation_batch_start(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            batch: Any,
-            batch_idx: int,
-            dataloader_idx: int,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         x_train, y_train = batch["train"]
         x_test, y_test = batch["test"]
@@ -211,16 +211,59 @@ class UMAPCallback(pl.Callback):
             pass
 
 
+class UMAPConstantInput(pl.Callback):
+    def __init__(
+        self,
+        logging_tech="wandb",
+        every_n_steps=90,
+        input_images=None,
+        use_plotly=True,
+        clustering="hdbscan",
+        km_n_clusters=5,
+        cluster_on_latent=False,
+    ) -> None:
+        super().__init__()
+        self.logging_tech = logging_tech
+        self.every_n_steps = every_n_steps
+        self.input_images, self.input_labels = input_images['x'], input_images['y']
+        self.plotly = use_plotly
+        self.algo = clustering
+        self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)
+        self.cluster_on_latent = cluster_on_latent
+    
+    def on_validation_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        input_imgs = self.input_images.to(pl_module.device).unsqueeze(0)
+        if trainer.global_step % self.every_n_steps != 0:
+            return
+        with torch.no_grad():
+            pl_module.eval()
+            # these set of input images do not change
+            z, _ = pl_module(input_imgs)
+            pl_module.train()
+        z = z.detach().squeeze(0).cpu().numpy()
+        z_prime = umap.UMAP(
+                random_state=42,
+                n_components=2,
+                min_dist=pl_module.params.umap_min_dist,
+                n_neighbors=pl_module.params.rdim_n_neighbors,
+            ).fit_transform(z)
+        _, preds, _ = self.clusterer(z if self.cluster_on_latent else z_prime)
+        if self.plotly:
+            log_plotly_graph(z_prime, self.input_labels.long().numpy(), "Raw embeddings of 100 constant images", trainer.global_step, pl_module, dims=2)
+            log_plotly_graph(z_prime, preds, "HDBSCAN results", trainer.global_step, pl_module, dims=2)
+        return
+
+
 class UMAPClusteringCallback(pl.Callback):
     def __init__(
-            self,
-            use_umap=True,
-            logging_tech="wandb",
-            every_n_steps=90,
-            use_plotly=True,
-            clustering="hdbscan",
-            km_n_clusters=5,
-            cluster_on_latent=False,
+        self,
+        use_umap=True,
+        logging_tech="wandb",
+        every_n_steps=90,
+        use_plotly=True,
+        clustering="hdbscan",
+        km_n_clusters=5,
+        cluster_on_latent=False,
     ) -> None:
         super().__init__()
         self.logging_tech = logging_tech
@@ -231,13 +274,13 @@ class UMAPClusteringCallback(pl.Callback):
         self.cluster_on_latent = cluster_on_latent
 
     def on_train_batch_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule",
-            outputs,
-            batch: Any,
-            batch_idx: int,
-            dataloader_idx: int,
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
 
         if trainer.global_step % self.every_n_steps == 0:
@@ -254,7 +297,7 @@ class UMAPClusteringCallback(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support:]
+            x_query = data[:, :, pl_module.n_support :]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
@@ -295,27 +338,30 @@ class UMAPClusteringCallback(pl.Callback):
 
             if self.logging_tech == "wandb" and self.plotly:
                 log_plotly_graph(
-                    z_prime, preds, f"{self.algo} predictions on train embeddings", trainer.global_step
+                    z_prime,
+                    preds,
+                    f"{self.algo} predictions on train embeddings",
+                    trainer.global_step,
                 )
                 if pl_module.train_oracle_mode:
                     log_plotly_graph(
                         z_prime,
                         true_y if pl_module.train_oracle_mode else y,
-                        'UMAP of source data',
-                        trainer.global_step
+                        "UMAP of source data",
+                        trainer.global_step,
                     )
             elif self.logging_tech == "wandb" and not self.plotly:
                 log_sns_plot(
                     z_prime,
                     preds,
                     f"{self.algo} predictions on train embeddings",
-                    trainer.global_step
+                    trainer.global_step,
                 )
                 if pl_module.train_oracle_mode:
                     log_sns_plot(
                         z_prime,
                         true_y if pl_module.train_oracle_mode else y,
-                        'UMAP of source data',
-                        trainer.global_step
+                        "UMAP of source data",
+                        trainer.global_step,
                     )
         return outputs

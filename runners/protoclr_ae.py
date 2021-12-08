@@ -18,6 +18,7 @@ from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
     UnlabelledDataset,
     OracleDataModule,
+    OracleDataset
 )
 from unsupervised_meta_learning.protoclr import ProtoCLR
 from unsupervised_meta_learning.dataclasses.protoclr_container import (
@@ -186,14 +187,31 @@ def protoclr_ae(
         if patience is not None:
             cbs.insert(0, EarlyStopping(monitor="train_accuracy_epoch", patience=patience))
         if clustering_callback:
+            dataset_train = OracleDataset(
+                    dataset=dataset,
+                    datapath=datapath,
+                    split="train",
+                    n_support=1,
+                    n_query=3,
+                    no_aug_support=True,
+                    train_oracle_mode=False,
+                    train_oracle_shots=5,
+                    train_oracle_ways=5
+                )
+            # cbs.append(
+            #     UMAPClusteringCallback(
+            #         use_umap=use_umap,
+            #         use_plotly=use_plotly,
+            #         every_n_steps=50,
+            #         clustering=clustering_alg,
+            #         km_n_clusters=km_clusters,
+            #         cluster_on_latent=cluster_on_latent
+            #     )
+            # )
+
             cbs.append(
-                UMAPClusteringCallback(
-                    use_umap=use_umap,
-                    use_plotly=use_plotly,
-                    every_n_steps=50,
-                    clustering=clustering_alg,
-                    km_n_clusters=km_clusters,
-                    cluster_on_latent=cluster_on_latent
+                UMAPConstantInput(
+                    input_images=get_train_images(dataset_train, 50)
                 )
             )
 

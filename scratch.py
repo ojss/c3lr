@@ -2,13 +2,14 @@
 import warnings
 import torch
 
+import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.profiler import PyTorchProfiler
-from pytorch_lightning.plugins import DDPPlugin
+from unsupervised_meta_learning.callbacks.image_generation import get_train_images
 
 from unsupervised_meta_learning.callbacks.umapcallbacks import *
 from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 from unsupervised_meta_learning.pl_dataloaders import (
+    OracleDataset,
     UnlabelledDataModule,
     OracleDataModule
 )
@@ -36,7 +37,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=150,
+    batch_size=50,
     mode="trainval",
     num_workers=4,
     eval_ways=5,
@@ -73,11 +74,24 @@ else:
 
 model = ProtoCLR(params)
 
-# logger = WandbLogger(
-#     project="ProtoCLR+AE",
-#     config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
-# )
-# logger.watch(model)
+logger = WandbLogger(
+    project="Scratch",
+    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
+)
+logger.watch(model)
+
+
+dataset_train = OracleDataset(
+                    dataset='miniimagenet',
+                    datapath='./data/untarred/',
+                    split="train",
+                    n_support=1,
+                    n_query=3,
+                    no_aug_support=True,
+                    train_oracle_mode=False,
+                    train_oracle_shots=5,
+                    train_oracle_ways=5
+                )
 
 trainer = pl.Trainer(
     # profiler="simple",
@@ -87,23 +101,11 @@ trainer = pl.Trainer(
     limit_val_batches=15,
     limit_test_batches=1,
     callbacks=[
-        # EarlyStopping(monitor="val_loss", patience=200, min_delta=0.02),
-        # UMAPCallback(every_n_epochs=1, use_plotly=False),
-        # PCACallback(),
-        # UMAPCallbackOnTrain(),
-        # PCACallbackOnTrain()
-        # UMAPClusteringCallback(
-        #     every_n_steps=50,
-        #     use_pacmap=True,
-        #     use_umap=False,
-        #     cluster_on_latent=True,
-        #     clustering='hdbscan',
-        #     km_n_clusters=5
-        # ),
+        UMAPConstantInput(input_images=get_train_images(dataset_train, 50))
     ],
     num_sanity_val_steps=1,
     gpus=gpus,
-    # logger=logger
+    logger=logger
 )
 
 with warnings.catch_warnings():
