@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=48:00:00
+#SBATCH --time=60:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -57,7 +57,6 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --clustering_alg="hdbscan" \
   --km_clusters=5 \
   --cl_reduction="mean" \
-  --cluster_on_latent=False \
   --ae=False \
   --profiler='simple' \
   --train_oracle_mode=False \

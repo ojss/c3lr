@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=12:00:00
+#SBATCH --time=50:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
