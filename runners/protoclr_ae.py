@@ -185,6 +185,7 @@ def protoclr_ae(
                 )
                 cbs.append(WandbImageCallback(get_train_images(dataset_train, 8)))
         if patience is not None:
+            # TODO: make a parameter to switch between train or val_accuracy
             cbs.insert(0, EarlyStopping(monitor="train_accuracy_epoch", patience=patience))
         if clustering_callback:
             dataset_train = OracleDataset(
@@ -232,12 +233,12 @@ def protoclr_ae(
     ckpt_path = os.path.join(
         ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{timestamp}"
     )
-
+    # TODO: make a parameter for early stoppping and checkpointing on val or train accuracy
     ckpt_callback = ModelCheckpoint(
-        monitor="val_accuracy",
+        monitor="train_accuracy_epoch", # previously val_accuracy
         mode="max",
         dirpath=ckpt_path,
-        filename="{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}",
+        filename="{epoch}-{step}-{test_loss_epoch:.2f}-{train_accuracy_epoch:.3f}",
         every_n_epochs=1,
         save_top_k=20,
     )
