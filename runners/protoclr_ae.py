@@ -71,9 +71,16 @@ def protoclr_ae(
         rrk1=20,
         rrk2=6,
         rrlambda=0,
+        estop_ckpt_on_val_acc=False,
         uuid=None  # comes from OS should be constant mostly
 ):
     cluster_on_latent = False if use_umap else True
+    if estop_ckpt_on_val_acc:
+        monitor = "val_accuracy" 
+        ckpt_file_format = "{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}"
+    else: 
+        monitor = "train_accuracy_epoch"
+        ckpt_file_format = "{epoch}-{step}-{train_loss_epoch:.2f}-{train_accuracy_epoch:.3f}"
 
     pl.seed_everything(42)
     gpus = torch.cuda.device_count()
@@ -164,7 +171,8 @@ def protoclr_ae(
                 "RRK1": rrk1,
                 "RRK2": rrk2,
                 "RRLambda": rrlambda,
-                "timestamp": timestamp,
+                "estop_ckpt_on_val_acc": estop_ckpt_on_val_acc,
+                "timestamp": timestamp
             },
         )
         logger.watch(model)
@@ -185,8 +193,7 @@ def protoclr_ae(
                 )
                 cbs.append(WandbImageCallback(get_train_images(dataset_train, 8)))
         if patience is not None:
-            # TODO: make a parameter to switch between train or val_accuracy
-            cbs.insert(0, EarlyStopping(monitor="train_accuracy_epoch", patience=patience))
+            cbs.insert(0, EarlyStopping(monitor=monitor, patience=patience))
         if clustering_callback:
             dataset_train = OracleDataset(
                     dataset=dataset,
@@ -233,12 +240,12 @@ def protoclr_ae(
     ckpt_path = os.path.join(
         ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{timestamp}"
     )
-    # TODO: make a parameter for early stoppping and checkpointing on val or train accuracy
+    
     ckpt_callback = ModelCheckpoint(
-        monitor="train_accuracy_epoch", # previously val_accuracy
+        monitor=monitor, # previously val_accuracy
         mode="max",
         dirpath=ckpt_path,
-        filename="{epoch}-{step}-{test_loss_epoch:.2f}-{train_accuracy_epoch:.3f}",
+        filename=ckpt_file_format,
         every_n_epochs=1,
         save_top_k=20,
     )
