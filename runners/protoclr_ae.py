@@ -18,7 +18,7 @@ from unsupervised_meta_learning.pl_dataloaders import (
     UnlabelledDataModule,
     UnlabelledDataset,
     OracleDataModule,
-    OracleDataset
+    get_episode_loader
 )
 from unsupervised_meta_learning.protoclr import ProtoCLR
 from unsupervised_meta_learning.dataclasses.protoclr_container import (
@@ -143,6 +143,7 @@ def protoclr_ae(
         logger = WandbLogger(
             project="ProtoCLR-C",
             config={
+                "SLURM_JOB_ID": os.environ['SLURM_JOB_ID'],
                 "batch_size": batch_size,
                 "n_classes": n_classes,
                 "steps": 100,
@@ -195,34 +196,14 @@ def protoclr_ae(
         if patience is not None:
             cbs.insert(0, EarlyStopping(monitor=monitor, patience=patience))
         if clustering_callback:
-            dataset_train = OracleDataset(
-                    dataset=dataset,
-                    datapath=datapath,
-                    split="train",
-                    n_support=1,
-                    n_query=3,
-                    no_aug_support=True,
-                    train_oracle_mode=False,
-                    train_oracle_shots=20,
-                    train_oracle_ways=5
-                )
-            # cbs.append(
-            #     UMAPClusteringCallback(
-            #         use_umap=use_umap,
-            #         use_plotly=use_plotly,
-            #         every_n_steps=50,
-            #         clustering=clustering_alg,
-            #         km_n_clusters=km_clusters,
-            #         cluster_on_latent=cluster_on_latent
-            #     )
-            # )
-
+            tmp_dl = get_episode_loader(dataset, datapath, 5, 20, 15, 1, 'train')
+            xs = next(iter(tmp_dl))
             cbs.append(
                 UMAPConstantInput(
-                    input_images=get_train_images(dataset_train, 50)
+                    input_images=xs
                 )
             )
-
+            del tmp_dl
         # should be there no matter what?
         cbs.append(ConfidenceIntervalCallback())
 

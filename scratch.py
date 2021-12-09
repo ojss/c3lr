@@ -25,8 +25,8 @@ torch.autograd.set_detect_anomaly(True)
 pl.seed_everything(42)
 gpus = torch.cuda.device_count()
 train_oracle_mode = False
-train_oracle_shots = 20
-train_oracle_ways = 10
+train_oracle_shots = None
+train_oracle_ways = None
 
 params = PCLRParamsContainer(
     "miniimagenet",
@@ -37,7 +37,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=50,
+    batch_size=100,
     mode="trainval",
     num_workers=4,
     eval_ways=5,
@@ -74,11 +74,11 @@ else:
 
 model = ProtoCLR(params)
 
-logger = WandbLogger(
-    project="Scratch",
-    config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
-)
-logger.watch(model)
+# logger = WandbLogger(
+#     project="Scratch",
+#     config={"batch_size": 100, "steps": 100, "dataset": "omniglot", "testing": True},
+# )
+# logger.watch(model)
 
 
 dataset_train = OracleDataset(
@@ -101,11 +101,11 @@ trainer = pl.Trainer(
     limit_val_batches=15,
     limit_test_batches=1,
     callbacks=[
-        UMAPConstantInput(input_images=get_train_images(dataset_train, 50))
+        # UMAPConstantInput(input_images=get_train_images(dataset_train, 50))
     ],
     num_sanity_val_steps=1,
     gpus=gpus,
-    logger=logger
+    # logger=logger
 )
 
 with warnings.catch_warnings():
