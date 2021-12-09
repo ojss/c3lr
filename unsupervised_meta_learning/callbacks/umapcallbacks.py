@@ -227,7 +227,8 @@ class UMAPConstantInput(pl.Callback):
         super().__init__()
         self.logging_tech = logging_tech
         self.every_n_steps = every_n_steps
-        self.input_images, self.input_labels = input_images['train'][0], input_images['train'][1].cpu().squeeze(0).numpy()
+        self.input_images = torch.cat([input_images['train'][0], input_images['test'][0]], dim=1)
+        self.input_labels = torch.cat([input_images['train'][1].squeeze(0), input_images['test'][1].squeeze(0)]).cpu().numpy()
         self.plotly = use_plotly
         self.algo = clustering
         self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)

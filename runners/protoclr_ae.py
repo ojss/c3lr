@@ -196,7 +196,7 @@ def protoclr_ae(
         if patience is not None:
             cbs.insert(0, EarlyStopping(monitor=monitor, patience=patience))
         if clustering_callback:
-            tmp_dl = get_episode_loader(dataset, datapath, 5, 20, 15, 1, 'train')
+            tmp_dl = get_episode_loader(dataset, datapath, 5, 30, 15, 1, 'train')
             xs = next(iter(tmp_dl))
             cbs.append(
                 UMAPConstantInput(
@@ -250,7 +250,7 @@ def protoclr_ae(
         limit_test_batches=600,
         callbacks=cbs,
         num_sanity_val_steps=1,
-        weights_save_path=os.path.join(ckpt_dir, "hpc_saves", uuid),
+        # weights_save_path=os.path.join(ckpt_dir, "hpc_saves", uuid),
         gpus=gpus,
         logger=logger,
         # strategy="dp"
