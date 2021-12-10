@@ -330,15 +330,11 @@ class ProtoCLR(pl.LightningModule):
                 prog_bar=True
             )
             loss += mse_loss
-        torch.cuda.synchronize()
-        torch.autograd.set_detect_anomaly(True)
 
         # self.manual_backward(loss)
         # opt.step()
         # sch.step()
-
         self.log_dict({"loss": loss.item(), "train_accuracy": accuracy}, prog_bar=True, on_epoch=True)
-
         return {"loss": loss, "train_accuracy": accuracy}
 
     @torch.enable_grad()

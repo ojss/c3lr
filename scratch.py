@@ -29,7 +29,7 @@ train_oracle_shots = None
 train_oracle_ways = None
 
 params = PCLRParamsContainer(
-    "miniimagenet",
+    "cub",
     "./data/untarred",
     gpus=gpus,
     transform=None,
@@ -37,7 +37,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=100,
+    batch_size=50,
     mode="trainval",
     num_workers=4,
     eval_ways=5,
@@ -81,17 +81,17 @@ model = ProtoCLR(params)
 # logger.watch(model)
 
 
-dataset_train = OracleDataset(
-                    dataset='miniimagenet',
-                    datapath='./data/untarred/',
-                    split="train",
-                    n_support=1,
-                    n_query=3,
-                    no_aug_support=True,
-                    train_oracle_mode=False,
-                    train_oracle_shots=5,
-                    train_oracle_ways=5
-                )
+# dataset_train = OracleDataset(
+#                     dataset='miniimagenet',
+#                     datapath='./data/untarred/',
+#                     split="train",
+#                     n_support=1,
+#                     n_query=3,
+#                     no_aug_support=True,
+#                     train_oracle_mode=False,
+#                     train_oracle_shots=5,
+#                     train_oracle_ways=5
+#                 )
 
 trainer = pl.Trainer(
     # profiler="simple",

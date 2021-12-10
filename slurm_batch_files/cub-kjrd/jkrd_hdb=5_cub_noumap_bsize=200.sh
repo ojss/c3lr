@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:turing
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -8,17 +8,17 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=10:00:00
+#SBATCH --time=50:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
 
 # Request 1 CPU per active thread of your program (assume 1 unless you specifically set this)
 # The default number of CPUs per task is 1 (note: CPUs are always allocated per 2)
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
 #SBATCH --mem=20000
@@ -42,24 +42,33 @@ module load miniconda/3.9
 rnd_uuid=$(uuidgen)
 
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
-# srun python runner.py cactus --emb_data_dir="/home/nfs/oshirekar/unsupervised_ml/data/cactus_data" --n_ways=5 --n_shots=1 --use_precomputed_partitions=False
 
-srun python ../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+# km_clusters below fulfills the role of hdb_min_cluster_size
+
+srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml/data/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
+  --batch_size=200 \
+  --num_workers=6 \
   --eval-ways=5 \
   --eval_support_shots=5 \
-  --batch_size=50 \
   --distance='euclidean' \
-  --tau=1.0 \
   --logging='wandb' \
-  --clustering_alg='None' \
-  --ae=False \
-  --use_umap=False \
+  --clustering_alg="hdbscan" \
+  --km_clusters=5 \
+  --cl_reduction="mean" \
   --profiler='simple' \
   --train_oracle_mode=False \
   --callbacks=False \
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-  --uuid=$rnd_uuid
+  --use_umap=False \
+  --umap_min_dist=0.25 \
+  --rdim_n_neighbors=50 \
+  --rdim_components=2 \
+  --rerank_kjrd=True \
+  --rrk1=20 \
+  --rrk2=6 \
+  --rrlambda=0 \
+  --uuid=$rnd_uuid # TODO: can be removed now
