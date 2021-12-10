@@ -24,6 +24,7 @@ else:
 
 __all__ = ['UMAPCallbackOnTrain', 'UMAPCallback', 'UMAPConstantInput', 'UMAPClusteringCallback']
 
+
 class UMAPCallbackOnTrain(pl.Callback):
     def __init__(self, logging_tech="wandb", every_n_steps=10, use_plotly=True) -> None:
         super().__init__()
@@ -32,12 +33,12 @@ class UMAPCallbackOnTrain(pl.Callback):
         self.plotly = use_plotly
 
     def on_train_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
         if trainer.global_step % self.every_n_steps == 0:
             data = batch["data"]
@@ -52,7 +53,7 @@ class UMAPCallbackOnTrain(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support :]
+            x_query = data[:, :, pl_module.n_support:]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])
@@ -127,11 +128,11 @@ class UMAPCallbackOnTrain(pl.Callback):
 class UMAPCallback(pl.Callback):
     # currently only works with wandb
     def __init__(
-        self,
-        every_n_epochs=10,
-        logger="wandb",
-        semi_supervised_umap=False,
-        use_plotly=True,
+            self,
+            every_n_epochs=10,
+            logger="wandb",
+            semi_supervised_umap=False,
+            use_plotly=True,
     ) -> None:
         super().__init__()
         self.every_n_epochs = every_n_epochs
@@ -140,12 +141,12 @@ class UMAPCallback(pl.Callback):
         self.plotly = use_plotly
 
     def on_validation_batch_start(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
         x_train, y_train = batch["train"]
         x_test, y_test = batch["test"]
@@ -215,25 +216,29 @@ class UMAPCallback(pl.Callback):
 
 class UMAPConstantInput(pl.Callback):
     def __init__(
-        self,
-        logging_tech="wandb",
-        every_n_steps=90,
-        input_images=None,
-        use_plotly=True,
-        clustering="hdbscan",
-        km_n_clusters=5,
-        cluster_on_latent=False,
+            self,
+            logging_tech="wandb",
+            every_n_steps=90,
+            input_images=None,
+            use_plotly=True,
+            clustering="hdbscan",
+            km_n_clusters=5,
+            cluster_on_latent=False,
     ) -> None:
         super().__init__()
         self.logging_tech = logging_tech
         self.every_n_steps = every_n_steps
-        self.input_images = torch.cat([input_images['train'][0], input_images['test'][0]], dim=1)
-        self.input_labels = torch.cat([input_images['train'][1].squeeze(0), input_images['test'][1].squeeze(0)]).cpu().numpy()
+        # self.input_images = torch.cat([input_images['train'][0], input_images['test'][0]], dim=1)
+        self.input_images = input_images['train'][0]
+        # self.input_labels = torch.cat([input_images['train'][1].squeeze(0), input_images['test'][1].squeeze(0)]).cpu().numpy()
+        self.input_labels = input_images['train'][1].squeeze(0).cpu().numpy()
         self.plotly = use_plotly
         self.algo = clustering
         self.clusterer = partial(clusterer, algo=clustering, n_clusters=km_n_clusters)
         self.cluster_on_latent = cluster_on_latent
-    def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int, dataloader_idx: int) -> None:
+
+    def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs, batch, batch_idx: int,
+                           dataloader_idx: int) -> None:
         if trainer.global_step % self.every_n_steps != 0:
             return
         input_imgs = self.input_images.to(pl_module.device)
@@ -244,28 +249,29 @@ class UMAPConstantInput(pl.Callback):
             pl_module.train()
         z = z.detach().squeeze(0).cpu().numpy()
         z_prime = umap.UMAP(
-                random_state=42,
-                n_components=2,
-                # min_dist=pl_module.params.umap_min_dist,
-                # n_neighbors=pl_module.params.rdim_n_neighbors,
-            ).fit_transform(z)
+            random_state=42,
+            n_components=2,
+            # min_dist=pl_module.params.umap_min_dist,
+            # n_neighbors=pl_module.params.rdim_n_neighbors,
+        ).fit_transform(z)
         _, preds, _ = self.clusterer(z if self.cluster_on_latent else z_prime)
         if self.plotly:
-            log_plotly_graph(z_prime, self.input_labels, "Raw embeddings of 150 constant images", trainer.global_step, pl_module, dims=2)
+            log_plotly_graph(z_prime, self.input_labels, "Raw embeddings of 150 constant images", trainer.global_step,
+                             pl_module, dims=2)
             log_plotly_graph(z_prime, preds, "HDBSCAN results", trainer.global_step, pl_module, dims=2)
         return
 
 
 class UMAPClusteringCallback(pl.Callback):
     def __init__(
-        self,
-        use_umap=True,
-        logging_tech="wandb",
-        every_n_steps=90,
-        use_plotly=True,
-        clustering="hdbscan",
-        km_n_clusters=5,
-        cluster_on_latent=False,
+            self,
+            use_umap=True,
+            logging_tech="wandb",
+            every_n_steps=90,
+            use_plotly=True,
+            clustering="hdbscan",
+            km_n_clusters=5,
+            cluster_on_latent=False,
     ) -> None:
         super().__init__()
         self.logging_tech = logging_tech
@@ -276,13 +282,13 @@ class UMAPClusteringCallback(pl.Callback):
         self.cluster_on_latent = cluster_on_latent
 
     def on_train_batch_end(
-        self,
-        trainer: "pl.Trainer",
-        pl_module: "pl.LightningModule",
-        outputs,
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int,
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule",
+            outputs,
+            batch: Any,
+            batch_idx: int,
+            dataloader_idx: int,
     ) -> None:
 
         if trainer.global_step % self.every_n_steps == 0:
@@ -299,7 +305,7 @@ class UMAPClusteringCallback(pl.Callback):
             x_support = x_support.reshape(
                 (batch_size, ways * pl_module.n_support, *x_support.shape[-3:])
             )
-            x_query = data[:, :, pl_module.n_support :]
+            x_query = data[:, :, pl_module.n_support:]
             # e.g. [1,50*n_query,*(3,84,84)]
             x_query = x_query.reshape(
                 (batch_size, ways * pl_module.n_query, *x_query.shape[-3:])

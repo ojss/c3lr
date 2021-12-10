@@ -76,9 +76,9 @@ def protoclr_ae(
 ):
     cluster_on_latent = False if use_umap else True
     if estop_ckpt_on_val_acc:
-        monitor = "val_accuracy" 
+        monitor = "val_accuracy"
         ckpt_file_format = "{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}"
-    else: 
+    else:
         monitor = "train_accuracy_epoch"
         ckpt_file_format = "{epoch}-{step}-{train_loss_epoch:.2f}-{train_accuracy_epoch:.3f}"
 
@@ -221,9 +221,9 @@ def protoclr_ae(
     ckpt_path = os.path.join(
         ckpt_dir, f"{dataset}/{eval_ways}_{eval_support_shots}_om-{train_oracle_mode}/{timestamp}"
     )
-    
+
     ckpt_callback = ModelCheckpoint(
-        monitor=monitor, # previously val_accuracy
+        monitor=monitor,  # previously val_accuracy
         mode="max",
         dirpath=ckpt_path,
         filename=ckpt_file_format,
