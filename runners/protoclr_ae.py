@@ -80,7 +80,7 @@ def protoclr_ae(
         ckpt_file_format = "{epoch}-{step}-{val_loss:.2f}-{val_accuracy:.3f}"
     else:
         monitor = "train_accuracy_epoch"
-        ckpt_file_format = "{epoch}-{step}-{train_loss_epoch:.2f}-{train_accuracy_epoch:.3f}"
+        ckpt_file_format = "{epoch}-{step}-{loss_epoch:.2f}-{train_accuracy_epoch:.3f}"
 
     pl.seed_everything(42)
     gpus = torch.cuda.device_count()
