@@ -437,12 +437,37 @@ class ProtoCLR(pl.LightningModule):
         accuracy = torch.mean(predictions.eq(y_query).float())
         return loss, accuracy.item()
 
+    def std_proto_form(self, batch, batch_idx):
+        x_support = batch["train"][0]
+        y_support = batch["train"][1]
+        x_support = x_support
+        y_support = y_support
+
+        x_query = batch["test"][0]
+        y_query = batch["test"][1]
+        x_query = x_query
+        y_query = y_query
+
+        # Extract shots
+        shots = int(x_support.size(1) / self.eval_ways)
+        test_shots = int(x_query.size(1) / self.eval_ways)
+
+        # Extract features (first dim is batch dim)
+        x = torch.cat([x_support, x_query], 1)
+        z, _ = self.forward(x)
+        z_support = z[:, :self.eval_ways * shots]
+        z_query = z[:, self.eval_ways * shots:]
+
+        # Calucalte prototypes
+        z_proto = get_prototypes(z_support, y_support, self.eval_ways)
+
+        # Calculate loss and accuracies
+        loss, accuracy = prototypical_loss(z_proto, z_query, y_query,
+                                           distance=self.distance)
+        return loss, accuracy
+
     def validation_step(self, batch, batch_idx):
-
         original_encoder_state = copy.deepcopy(self.encoder.state_dict())
-        if not self.mode == "trainval":
-            original_encoder_state = copy.deepcopy(self.encoder.state_dict())
-
         if self.sup_finetune:
             loss, accuracy = self.supervised_finetuning(
                 self.encoder,
@@ -459,7 +484,7 @@ class ProtoCLR(pl.LightningModule):
                 loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
         else:
             with torch.no_grad():
-                loss, accuracy, _, _ = self.calculate_protoclr_loss(batch, ae=False)
+                loss, accuracy = self.std_proto_form(batch, batch_idx)
         self.log_dict(
             {"val_loss": loss.item(), "val_accuracy": accuracy}, prog_bar=True, sync_dist=True
         )
@@ -467,25 +492,30 @@ class ProtoCLR(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         original_encoder_state = copy.deepcopy(self.encoder.state_dict())
-        # if self.sup_finetune:
-        loss, accuracy = self.supervised_finetuning(
-            self.encoder,
-            episode=batch,
-            inner_lr=self.sup_finetune_lr,
-            total_epoch=self.sup_finetune_epochs,
-            freeze_backbone=self.ft_freeze_backbone,
-            finetune_batch_norm=self.finetune_batch_norm,
-            n_way=self.eval_ways,
-        )
-        self.encoder.load_state_dict(original_encoder_state)
+        if self.sup_finetune:
+            loss, accuracy = self.supervised_finetuning(
+                self.encoder,
+                episode=batch,
+                inner_lr=self.sup_finetune_lr,
+                total_epoch=self.sup_finetune_epochs,
+                freeze_backbone=self.ft_freeze_backbone,
+                finetune_batch_norm=self.finetune_batch_norm,
+                n_way=self.eval_ways,
+            )
+            torch.cuda.empty_cache()
+            self.encoder.load_state_dict(original_encoder_state)
+        else:
+            # Note: this is just using the standard protonet form
+            with torch.no_grad():
+                loss, accuracy = self.std_proto_form(batch, batch_idx)
+
         self.log(
             "test_loss",
-            loss.item(),
+            loss.detach().item(),
             on_step=True,
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True
         )
         self.log(
             "test_acc",
@@ -494,6 +524,5 @@ class ProtoCLR(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True
         )
         return loss.item(), accuracy

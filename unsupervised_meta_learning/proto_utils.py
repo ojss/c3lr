@@ -66,7 +66,7 @@ def get_num_samples(targets, num_classes, dtype=None):
 
 # Cell
 
-def get_prototypes(self, emb, targets, num_classes):
+def get_prototypes(emb, targets, num_classes):
     """Compute the prototypes (the mean vector of the embedded training/support
     points belonging to its class) for each classes in the task.
     Parameters
@@ -88,7 +88,7 @@ def get_prototypes(self, emb, targets, num_classes):
 
     batch_size, emb_size = emb.size(0), emb.size(-1)
 
-    num_samples = self.get_num_samples(targets, num_classes, dtype=emb.dtype)
+    num_samples = get_num_samples(targets, num_classes, dtype=emb.dtype)
     num_samples = num_samples.unsqueeze(-1)
     num_samples = torch.max(num_samples, torch.ones_like(num_samples))
 

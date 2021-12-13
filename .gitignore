@@ -14,3 +14,5 @@ cactus-protonets/
 __pycache__/
 .DS_Store
 /.idea/
+
+ckpts/

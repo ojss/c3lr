@@ -30,6 +30,7 @@ import h5py
 import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
@@ -191,7 +192,7 @@ def get_omniglot_transform(img_shape):
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
-            #   transforms.Lambda(lambda t: F.dropout(t, p=0.3)),
+            transforms.Lambda(lambda t: F.dropout(t, p=0.3)),
             transforms.RandomErasing(),
         ]
     )
