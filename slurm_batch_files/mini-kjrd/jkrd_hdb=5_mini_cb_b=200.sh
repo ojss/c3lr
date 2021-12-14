@@ -11,7 +11,7 @@
 #SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=15:00:00
+#SBATCH --time=60:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=20000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -45,7 +45,7 @@ source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 # km_clusters below fulfills the role of hdb_min_cluster_size
 
-srun python ../../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
   --batch_size=200 \
@@ -55,12 +55,13 @@ srun python ../../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervis
   --distance='euclidean' \
   --logging='wandb' \
   --clustering_alg="hdbscan" \
-  --km_clusters=3 \
+  --km_clusters=5 \
   --cl_reduction="mean" \
   --ae=False \
   --profiler='simple' \
   --train_oracle_mode=False \
   --callbacks=False \
+  --clustering_callback=True \
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
