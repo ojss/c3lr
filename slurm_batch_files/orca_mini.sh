@@ -59,6 +59,7 @@ srun python ../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupervi
   --profiler='simple' \
   --train_oracle_mode=False \
   --callbacks=False \
+  --clustering_callback=True \
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \

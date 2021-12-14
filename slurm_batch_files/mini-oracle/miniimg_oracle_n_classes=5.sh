@@ -53,12 +53,12 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--logging='wandb' \
 	--clustering_alg="None" \
 	--cl_reduction="mean" \
-	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
 	--train_oracle_mode=True \
 	--n_classes=5 \
 	--callbacks=False \
+	--clustering_callback=True \
 	--patience=200 \
 	--no_aug_support=True \
 	--ckpt_dir="~/unsupervised_ml/ckpts" \

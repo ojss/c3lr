@@ -58,5 +58,6 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--train_oracle_ways=10 \
 	--train_oracle_shots=20 \
 	--callbacks=False \
+	--clustering_callback=True \
 	--patience=200 \
 	--no_aug_support=True

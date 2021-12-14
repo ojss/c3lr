@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=long
+#SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=35:00:00
+#SBATCH --time=12:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -68,7 +68,7 @@ srun python ../../runner.py protoclr_ae omniglot "/home/nfs/oshirekar/unsupervis
   --use_umap=True \
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
-  --rdim_components=2 \
+  --rdim_components=8 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \
