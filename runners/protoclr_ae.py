@@ -194,7 +194,7 @@ def protoclr_ae(
                 )
                 cbs.append(WandbImageCallback(get_train_images(dataset_train, 8)))
         if patience is not None:
-            cbs.insert(0, EarlyStopping(monitor=monitor, patience=patience))
+            cbs.insert(0, EarlyStopping(monitor=monitor, patience=patience, mode='max'))
         if clustering_callback:
             tmp_dl = get_episode_loader(dataset, datapath, 5, 30, 15, 1, 'train')
             xs = next(iter(tmp_dl))
