@@ -28,7 +28,7 @@ def evaluator(dataset, datapath, model_path: str = None, eval_ways=5, eval_suppo
         eval_support_shots=eval_support_shots,
         eval_query_shots=eval_query_shots,
         no_aug_support=True,
-        num_workers=2,
+        num_workers=6,
         use_umap=False,
         sup_finetune=sup_finetune,
         ft_freeze_backbone=ft_freeze_backbone

@@ -1,4 +1,4 @@
-from torchmeta.datasets.helpers import cub, omniglot, miniimagenet
+from torchmeta.datasets.helpers import cub, omniglot, miniimagenet, tieredimagenet
 import argparse
 import sys
 import os
@@ -23,6 +23,8 @@ elif dataset == 'miniimagenet':
     dataset_func = miniimagenet
 elif dataset == 'cub':
     dataset_func = cub
+elif dataset == 'tieredimagenet':
+    dataset_func = tieredimagenet
 else:
     raise ValueError("No such dataset available. Please choose from\
                      ['omniglot', 'miniimagenet', 'tieredimagenet',\
