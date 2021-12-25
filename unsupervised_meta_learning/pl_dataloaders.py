@@ -445,6 +445,12 @@ class UnlabelledDataset(Dataset):
         # Get the data or paths
         self.dataset = dataset
         self.targets = []
+        self.tr_repeat = {
+            'omniglot': 20,
+            'miniimagenet': 600,
+            'tieredimagenet': 1300,
+            'cub': 60
+        }
         self.data = self._extract_data_from_hdf5(
             dataset, datapath, split, n_classes, seed
         )
@@ -499,7 +505,8 @@ class UnlabelledDataset(Dataset):
                 class_names = list(datasets.keys())
                 classes = [datasets[k][()] for k in class_names]
             targets = LabelEncoder().fit_transform(class_names)
-            self.targets = np.concatenate([targets]).repeat(600)
+            # TODO: not all classes are made equal
+            self.targets = np.concatenate([targets]).repeat(self.tr_repeat[self.dataset])
 
         # Optionally filter out some classes)
         if n_classes is not None:
@@ -517,7 +524,7 @@ class UnlabelledDataset(Dataset):
         return self.data.shape[0]
 
     def __getitem__(self, index):
-        if self.dataset == "cub":
+        if self.dataset == "cub" or self.dataset == 'tieredimagenet':
             target = self.targets[index]
             image = Image.open(io.BytesIO(self.data[index])).convert("RGB")
         else:
@@ -595,7 +602,7 @@ class UnlabelledDataModule(pl.LightningDataModule):
         self.train_oracle_ways = params.train_oracle_ways
         self.train_oracle_shots = params.train_oracle_shots
 
-        self.seed = params.seed # IMP: always keep at 42
+        self.seed = params.seed  # IMP: always keep at 42
         self.kwargs = kwargs
 
     def setup(self, stage=None):

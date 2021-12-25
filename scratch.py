@@ -29,7 +29,7 @@ train_oracle_shots = None
 train_oracle_ways = None
 
 params = PCLRParamsContainer(
-    "cub",
+    "tieredimagenet",
     "./data/untarred",
     gpus=gpus,
     transform=None,

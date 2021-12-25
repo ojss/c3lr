@@ -245,7 +245,7 @@ def protoclr_ae(
     trainer = pl.Trainer(
         max_epochs=10000,
         limit_train_batches=100,
-        fast_dev_run=False,
+        fast_dev_run=True,
         limit_val_batches=15,
         limit_test_batches=600,
         callbacks=cbs,
