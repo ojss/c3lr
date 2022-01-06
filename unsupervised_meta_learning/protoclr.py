@@ -7,6 +7,7 @@ __all__ = [
 
 # Cell
 # export
+import inspect
 import copy
 import importlib
 from dataclasses import asdict
@@ -66,7 +67,10 @@ class ProtoCLR(pl.LightningModule):
         super().__init__()
         self.params = params
 
-        self.encoder = params.encoder_class(params.num_input_channels, params.base_channel_size, params.latent_dim)
+        if inspect.isclass(params.encoder_class):
+            self.encoder = params.encoder_class(params.num_input_channels, params.base_channel_size, params.latent_dim)
+        else:
+            self.encoder = params.encoder_class
 
         self.clustering_algo = params.clustering_algo
         self.cl_reduction = params.cl_reduction
@@ -257,7 +261,7 @@ class ProtoCLR(pl.LightningModule):
         sch = self.lr_schedulers()
         # opt.zero_grad()
         # [batch_size x ways x shots x image_dim]
-        data = batch["data"]
+        data = batch["data"] if not self.params.cdfsl_flg else batch
         if not self.no_unsqueeze_flg:
             data = data.unsqueeze(0)
         # e.g. 50 images, 2 support, 2 query, miniImageNet: torch.Size([1, 50, 4, 3, 84, 84])

@@ -19,9 +19,11 @@ from unsupervised_meta_learning.proto_utils import (
     Encoder4L,
 )
 from unsupervised_meta_learning.protoclr import ProtoCLR
+from unsupervised_meta_learning.cdfsl.datasets import miniImageNet_few_shot
+from unsupervised_meta_learning import backbone
 
-torch.autograd.set_detect_anomaly(True)
-# profiler = PyTorchProfiler(profile_memory=True, with_stack=True)
+
+
 pl.seed_everything(42)
 gpus = torch.cuda.device_count()
 train_oracle_mode = False
@@ -37,7 +39,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=50,
+    batch_size=30,
     mode="trainval",
     num_workers=0,
     eval_ways=5,
@@ -48,9 +50,8 @@ params = PCLRParamsContainer(
     train_oracle_ways=train_oracle_ways,
     distance="euclidean",
     tau=0.5,
-    num_input_channels=1,
-    decoder_class=Decoder4L4Mini,
-    encoder_class=Encoder4L,
+    num_input_channels=3,
+    encoder_class=backbone.ResNet10(),
     lr_decay_step=25000,
     lr_decay_rate=0.5,
     clustering_algo='hdbscan',
@@ -61,16 +62,24 @@ params = PCLRParamsContainer(
     ae=False,
     gamma=.001,
     log_images=True,
-    use_umap=True,
-    rerank_kjrd=False,
+    use_umap=False,
+    rerank_kjrd=True,
+
+    cdfsl_flg=True,
     seed=42
 )
 
-if train_oracle_mode and train_oracle_shots is not None and train_oracle_ways is not None:
-    dm = OracleDataModule(params)
-else:
-    print("using unlabelled")
-    dm = UnlabelledDataModule(params)
+
+datamgr = miniImageNet_few_shot.SimpleDataManager(224, batch_size = 30)
+dm = datamgr.get_data_loader(aug = None,
+                                          n_support=params.n_support, n_query=params.n_query,
+                                          no_aug_support=params.no_aug_support, no_aug_query=params.no_aug_query)
+# exit(0)
+# if train_oracle_mode and train_oracle_shots is not None and train_oracle_ways is not None:
+#     dm = OracleDataModule(params)
+# else:
+#     print("using unlabelled")
+#     dm = UnlabelledDataModule(params)
 
 model = ProtoCLR(params)
 
@@ -98,21 +107,22 @@ trainer = pl.Trainer(
     max_epochs=1,
     limit_train_batches=2,
     fast_dev_run=True,
-    limit_val_batches=15,
+    limit_val_batches=0,
     limit_test_batches=1,
+    val_check_interval=0,
     callbacks=[
         # UMAPConstantInput(input_images=get_train_images(dataset_train, 50))
     ],
-    num_sanity_val_steps=1,
-    gpus=gpus,
+    num_sanity_val_steps=0,
+    gpus=1,
     # logger=logger
 )
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    trainer.fit(model, datamodule=dm)
+    trainer.fit(model, train_dataloader=dm)
 
-trainer.test(model=model, datamodule=dm)
+# trainer.test(model=model, datamodule=dm)
 
 # from torchinfo import summary
 # import torch.nn as nn

@@ -82,6 +82,8 @@ class PCLRParamsContainer:
     rerank_kjrd: bool = False
     re_rank_args: Optional[ReRankerContainer] = None
 
+    cdfsl_flg: bool = False
+
     def __post_init__(self):
         if self.dataset == "omniglot":
             self.num_input_channels = 1
