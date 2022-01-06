@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=35:00:00
+#SBATCH --time=48:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=32000
+#SBATCH --mem=24000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -65,12 +65,8 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-  --use_umap=True \
-  --umap_min_dist=0.25 \
-  --rdim_n_neighbors=50 \
-  --rdim_components=2 \
+  --use_umap=False \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \
-  --rrlambda=0 \
-  --uuid=$rnd_uuid
+  --rrlambda=0

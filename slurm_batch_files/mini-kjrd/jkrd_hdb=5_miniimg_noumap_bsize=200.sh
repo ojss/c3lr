@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -11,7 +11,7 @@
 #SBATCH --qos=medium
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=20:00:00
+#SBATCH --time=33:19:96
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --cpus-per-task=8
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=24000
+#SBATCH --mem=20000
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -51,7 +51,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --batch_size=200 \
   --num_workers=6 \
   --eval-ways=5 \
-  --eval_support_shots=5 \
+  --eval_support_shots=1 \
   --distance='euclidean' \
   --logging='wandb' \
   --clustering_alg="hdbscan" \
@@ -61,13 +61,11 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
   --profiler='simple' \
   --train_oracle_mode=False \
   --callbacks=False \
-  --patience=300 \
+  --patience=200 \
+  --estop_ckpt_on_val_acc=True \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
   --use_umap=False \
-  --umap_min_dist=0.25 \
-  --rdim_n_neighbors=50 \
-  --rdim_components=2 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \

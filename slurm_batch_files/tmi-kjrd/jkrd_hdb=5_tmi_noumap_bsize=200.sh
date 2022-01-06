@@ -8,10 +8,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=medium
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=20:00:00
+#SBATCH --time=50:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -39,13 +39,11 @@ module load miniconda/3.9
 # For example: srun python my_program.py
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
-rnd_uuid=$(uuidgen)
-
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 # km_clusters below fulfills the role of hdb_min_cluster_size
 
-srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../../runner.py protoclr_ae tieredimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
   --batch_size=200 \
@@ -63,12 +61,9 @@ srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml
   --patience=200 \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-  --use_umap=True \
-  --umap_min_dist=0.25 \
-  --rdim_n_neighbors=50 \
-  --rdim_components=2 \
+  --use_umap=False \
   --rerank_kjrd=True \
+  --estop_ckpt_on_val_acc=True \
   --rrk1=20 \
   --rrk2=6 \
-  --rrlambda=0 \
-  --uuid=$rnd_uuid # TODO: can be removed now
+  --rrlambda=0

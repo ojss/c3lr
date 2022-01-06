@@ -55,12 +55,13 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--clustering_alg="kmeans" \
 	--km_clusters=10 \
 	--cl_reduction="mean" \
-	--cluster_on_latent=False \
 	--ae=False \
 	--profiler='simple'  \
 	--train_oracle_mode=False \
 	--callbacks=False \
 	--patience=200 \
+	--estop_ckpt_on_val_acc=True \
 	--no_aug_support=True \
-	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
-	--uuid=$rnd_uuid
+	--use_umap=False \
+	--rerank_kjrd=True \
+	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts"

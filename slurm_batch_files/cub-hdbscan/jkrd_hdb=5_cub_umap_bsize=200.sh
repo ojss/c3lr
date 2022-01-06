@@ -67,8 +67,4 @@ srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml
   --umap_min_dist=0.25 \
   --rdim_n_neighbors=50 \
   --rdim_components=2 \
-  --rerank_kjrd=True \
-  --rrk1=20 \
-  --rrk2=6 \
-  --rrlambda=0 \
-  --uuid=$rnd_uuid # TODO: can be removed now
+  --rerank_kjrd=False \

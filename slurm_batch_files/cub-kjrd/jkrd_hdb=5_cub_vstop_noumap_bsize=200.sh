@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -11,7 +11,7 @@
 #SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=70:00:00
+#SBATCH --time=40:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -39,17 +39,19 @@ module load miniconda/3.9
 # For example: srun python my_program.py
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
+rnd_uuid=$(uuidgen)
+
 source activate /home/nfs/oshirekar/unsupervised_ml/ai2
 
 # km_clusters below fulfills the role of hdb_min_cluster_size
 
-srun python ../../runner.py protoclr_ae tieredimagenet "/home/nfs/oshirekar/unsupervised_ml/data/" \
+srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml/data/" \
   --lr=1e-3 \
   --inner_lr=1e-3 \
   --batch_size=200 \
   --num_workers=6 \
   --eval-ways=5 \
-  --eval_support_shots=5 \
+  --eval_support_shots=1 \
   --distance='euclidean' \
   --logging='wandb' \
   --clustering_alg="hdbscan" \
@@ -59,10 +61,12 @@ srun python ../../runner.py protoclr_ae tieredimagenet "/home/nfs/oshirekar/unsu
   --train_oracle_mode=False \
   --callbacks=False \
   --patience=200 \
+  --estop_ckpt_on_val_acc=True \
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
   --use_umap=False \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \
-  --rrlambda=0
+  --rrlambda=0 \
+  --uuid=$rnd_uuid # TODO: can be removed now

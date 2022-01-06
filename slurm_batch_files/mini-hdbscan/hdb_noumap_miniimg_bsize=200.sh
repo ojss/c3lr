@@ -49,7 +49,7 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--batch_size=200 \
 	--num_workers=6 \
 	--eval-ways=5 \
-	--eval_support_shots=5 \
+	--eval_support_shots=1 \
 	--distance='euclidean' \
 	--logging='wandb' \
 	--clustering_alg="hdbscan" \
@@ -64,4 +64,5 @@ srun python ../../runner.py protoclr_ae miniimagenet "/home/nfs/oshirekar/unsupe
 	--ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
 	--use_umap=False \
 	--rerank_kjrd=False \
+	--estop_ckpt_on_val_acc=True \
 	--uuid=$rnd_uuid

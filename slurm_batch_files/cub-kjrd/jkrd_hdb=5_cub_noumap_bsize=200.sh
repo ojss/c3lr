@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --gres=gpu:turing
+#SBATCH --gres=gpu:1
 # You can control the resources and scheduling with '#SBATCH' settings
 # (see 'man sbatch' for more information on setting these parameters)
 
@@ -64,9 +64,6 @@ srun python ../../runner.py protoclr_ae cub "/home/nfs/oshirekar/unsupervised_ml
   --no_aug_support=True \
   --ckpt_dir="/home/nfs/oshirekar/unsupervised_ml/ckpts" \
   --use_umap=False \
-  --umap_min_dist=0.25 \
-  --rdim_n_neighbors=50 \
-  --rdim_components=2 \
   --rerank_kjrd=True \
   --rrk1=20 \
   --rrk2=6 \
