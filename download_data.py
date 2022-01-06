@@ -1,4 +1,4 @@
-from torchmeta.datasets.helpers import cub, omniglot, miniimagenet, tieredimagenet
+from torchmeta.datasets.helpers import cub, omniglot, miniimagenet, tieredimagenet, fc100, cifar_fs
 import argparse
 import sys
 import os
@@ -25,11 +25,15 @@ elif dataset == 'cub':
     dataset_func = cub
 elif dataset == 'tieredimagenet':
     dataset_func = tieredimagenet
+elif dataset == 'cifar_fs':
+    dataset_func = cifar_fs
+elif dataset == 'fc100':
+    dataset_func = fc100
 else:
     raise ValueError("No such dataset available. Please choose from\
                      ['omniglot', 'miniimagenet', 'tieredimagenet',\
                       'cub, cifar_fs, doublemnist, triplemnist']")
-
+print(dataset_func)
 # Create dataset for labelled images
 dataset = dataset_func(args.datapath,
                        ways=5,

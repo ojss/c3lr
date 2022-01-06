@@ -29,7 +29,7 @@ train_oracle_shots = None
 train_oracle_ways = None
 
 params = PCLRParamsContainer(
-    "tieredimagenet",
+    "miniimagenet",
     "./data/untarred",
     gpus=gpus,
     transform=None,
@@ -37,7 +37,7 @@ params = PCLRParamsContainer(
     n_query=3,
     n_images=None,
     n_classes=None,
-    batch_size=10,
+    batch_size=50,
     mode="trainval",
     num_workers=0,
     eval_ways=5,
@@ -62,7 +62,7 @@ params = PCLRParamsContainer(
     gamma=.001,
     log_images=True,
     use_umap=True,
-    rerank_kjrd=True,
+    rerank_kjrd=False,
     seed=42
 )
 

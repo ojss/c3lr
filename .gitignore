@@ -1,5 +1,6 @@
 slurm_batch_files/**/*.out
 slurm_batch_files/**/ckpts/*
+nbs/assets
 wandb/
 multirun/
 data/untarred/*
