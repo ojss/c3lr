@@ -102,7 +102,7 @@ def cdfsl_train(
     if logging == "wandb":
         logger = WandbLogger(
             project="ProtoCLR-C-CDFSL",
-            log_model='all',
+            log_model=True,
             config={
                 "SLURM_JOB_ID": os.environ["SLURM_JOB_ID"],
                 "batch_size": batch_size,
@@ -141,13 +141,14 @@ def cdfsl_train(
         dirpath=ckpt_path,
         filename="{epoch}-{step}-{loss_epoch:.2f}-{train_accuracy_epoch:.3f}",
         every_n_epochs=1,
-        save_top_k=20,
+        save_top_k=5,
+        save_last=True
     )
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         fast_dev_run=False,
         limit_val_batches=0,
-        val_check_interval=0,
+        # val_check_interval=0,
         num_sanity_val_steps=0,
         gpus=gpus,
         callbacks=[ckpt_callback],

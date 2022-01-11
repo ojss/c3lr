@@ -19,12 +19,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder
 from torch.autograd import Variable
+from torchmetrics import MeanMetric
 from tqdm.auto import tqdm
 
 from unsupervised_meta_learning.dataclasses.protoclr_container import PCLRParamsContainer
 from unsupervised_meta_learning.re_rank import re_ranking2
 from .proto_utils import (AttnEncoder4L, cluster_diff_loss,
-                          clusterer, get_prototypes, prototypical_loss)
+                          clusterer, euclidean_dist2, get_prototypes, prototypical_loss)
 
 if (cuml_details := importlib.util.find_spec("cuml")) is not None:
     from cuml.manifold import umap
@@ -119,6 +120,9 @@ class ProtoCLR(pl.LightningModule):
             self.no_unsqueeze_flg = True
         else:
             self.no_unsqueeze_flg = False
+        
+        if self.params.cdfsl_flg:
+            self.top1 = MeanMetric()
 
         # self.example_input_array = [batch_size, 1, 28, 28] if dataset == 'omniglot'\
         #     else [batch_size, 3, 84, 84]
@@ -159,7 +163,7 @@ class ProtoCLR(pl.LightningModule):
         return mse_loss
 
     def calculate_protoclr_loss(self, z, y_support, y_query, ways):
-
+        loss = 0
         #
         # e.g. [1,50*n_support,*(3,84,84)]
         z_support = z[:, : ways * self.n_support]
@@ -171,9 +175,18 @@ class ProtoCLR(pl.LightningModule):
         else:
             z_proto = get_prototypes(z_support, y_support, ways)
 
-        loss, accuracy = prototypical_loss(
-            z_proto, z_query, y_query, distance=self.distance, tau=self.tau
-        )
+        if not self.params.cdfsl_flg:
+            loss, accuracy = prototypical_loss(
+                z_proto, z_query, y_query, distance=self.distance, tau=self.tau
+            )
+        else:
+            z_proto = z_support.view(ways, self.params.n_support, -1).mean(1)
+            dists = euclidean_dist2(z_query.squeeze(0), z_proto)
+            scores = -dists
+            _, predicted = torch.max(scores.data, 1)
+            correct = predicted.eq(y_query).cpu().sum()
+            accuracy = self.top1.forward(correct.item()*100 / (y_query.size(1)+0.0)).item()
+            loss = F.cross_entropy(scores, y_query.squeeze(0))
         return loss, accuracy
 
     def _get_cluster_loss(self, z: torch.Tensor, y_support, y_query, ways):
