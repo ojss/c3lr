@@ -366,14 +366,23 @@ class ProtoCLR(pl.LightningModule):
             total_epoch=15,
             n_way=5,
     ):
-        x_support = episode["train"][0][0]  # only take data & only first batch
-        x_support = x_support
-        x_support_var = Variable(x_support)
-        x_query = episode["test"][0][0]  # only take data & only first batch
-        x_query = x_query
-        x_query_var = Variable(x_query)
-        n_support = x_support.shape[0] // n_way
-        n_query = x_query.shape[0] // n_way
+        if not self.params.cdfsl_flg:
+            x_support = episode["train"][0][0]  # only take data & only first batch
+            x_support = x_support
+            x_support_var = Variable(x_support)
+            x_query = episode["test"][0][0]  # only take data & only first batch
+            x_query = x_query
+            x_query_var = Variable(x_query)
+            n_support = x_support.shape[0] // n_way
+            n_query = x_query.shape[0] // n_way
+        else:
+            x, y= episode
+            n_support = 5
+            n_way = 5
+            n_query = 15
+            x_query = x[:, n_support:,:,:,:].contiguous().view( n_way * n_query,   *x.size()[2:]) 
+            x_support = x[:,:n_support,:,:,:].contiguous().view( n_way* n_support, *x.size()[2:]) # (25, 3, 224, 224)
+
 
         batch_size = n_way
         support_size = n_way * n_support
@@ -382,8 +391,8 @@ class ProtoCLR(pl.LightningModule):
             x_support
         )  # (25,)
 
-        x_b_i = x_query_var
-        x_a_i = x_support_var
+        x_b_i = x_query
+        x_a_i = x_support
         encoder.eval()
 
         z_a_i = nn.Flatten()(encoder(x_a_i))  # .view(*x_a_i.shape[:-3], -1)

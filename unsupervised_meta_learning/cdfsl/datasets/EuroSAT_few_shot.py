@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import torchvision.transforms as transforms
-import datasets.additional_transforms as add_transforms
+from . import additional_transforms as add_transforms
 from torch.utils.data import Dataset, DataLoader
 from abc import abstractmethod
 from torchvision.datasets import ImageFolder
@@ -16,8 +16,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 import sys
 sys.path.append("../")
 from configs import *
-from datasets.miniImageNet_few_shot import TransformLoader as MiniImTransformLoader
+from . import miniImageNet_few_shot
 from torchvision.datasets.folder import default_loader
+
+MiniImTransformLoader = miniImageNet_few_shot.TransformLoader
 
 identity = lambda x:x
 
