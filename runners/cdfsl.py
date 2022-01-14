@@ -91,7 +91,7 @@ def cdfsl_train(
     if dataset == "miniImageNet":
         datamgr = miniImageNet_few_shot.SimpleDataManager(224, batch_size=batch_size)
     train_dataloader = datamgr.get_data_loader(
-        aug=None,
+        aug=True,
         n_support=params.n_support,
         n_query=params.n_query,
         no_aug_support=params.no_aug_support,
@@ -140,8 +140,7 @@ def cdfsl_train(
         mode="max",
         dirpath=ckpt_path,
         filename="{epoch}-{step}-{loss_epoch:.2f}-{train_accuracy_epoch:.3f}",
-        every_n_epochs=1,
-        save_top_k=5,
+        every_n_epochs=25,
         save_last=True
     )
     trainer = pl.Trainer(

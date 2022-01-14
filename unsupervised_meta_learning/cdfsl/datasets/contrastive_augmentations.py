@@ -25,6 +25,7 @@ def get_simCLR_transform(img_shape):
                                           transforms.RandomApply([color_jitter], p=0.8),
                                           transforms.RandomGrayscale(p=0.2),
                                           GaussianBlur()])
+    return data_transforms
 
 def get_chestX_transform(img_shape):
     color_jitter = transforms.ColorJitter(brightness=0.8, contrast=0.8,
