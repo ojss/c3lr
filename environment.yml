@@ -1,4 +1,4 @@
-name: ai
+name: c3lr
 channels:
   - conda-forge
   - pytorch-lts
@@ -8,14 +8,10 @@ channels:
 dependencies:
   - python=3.9.5
   - mamba
-  - pip
   - pytorch-lightning
   - kornia
   - matplotlib
   - scikit-learn
-  - pytorch
-  - torchvision
-  - torchaudio
   - cudatoolkit=11.1
   - jupyter
   - ipywidgets
@@ -24,9 +20,29 @@ dependencies:
   - nbdev
   - wandb
   - fire
+  - opencv
+  - umap-learn
+  - torchaudio
+  - torchvision
+  - pytorch
+  - hdbscan
+  - plotly
+  - shortuuid
+  - black
+  - nodejs
+  - ca-certificates
+  - certifi
+  - openssl
+  - scikit-learn-intelex
+  - seaborn
+  - numpy
+  - cython
+  - colour
+  - more-itertools
+  - kaggle
+  - torchmetrics
   - pip:
           - torchmeta
           - torchnet
           - higher
-          - learn2learn 
-prefix: /home/ojas/anaconda3/envs/ai
+          - learn2learn

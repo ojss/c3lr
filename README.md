@@ -43,6 +43,12 @@ The algorithm consists of the following major high-level components:
 | Pre+Linear   (supervised) [6]     | 94.30 ± 0.43 | 99.08 ± 0.10 | 43.87 ± 0.69  | 63.01 ± 0.71 |
 
 
+# Requirements
+
+1. `cd` into the `c3lr` folder
+2. Create a new conda environment by running: `conda env create -f environment.yml`
+3. Activate the environment by running `conda activate c3lr`
+
 # Running Experiments
 
 1. **Make sure all required packages are installed before running the experiments**
