@@ -56,6 +56,7 @@ The algorithm consists of the following major high-level components:
 1. **Make sure all required packages are installed before running the experiments**
 2. Ensure that there is enough space for datasets to be downloaded - incase they haven't been downloaded already
 3. The folder `run_scripts -> local` contains bash scripts to help run the code
+4. The best models for miniImagenet, Omniglot and CDFSL-Benchmarks are provided and can be run using the command: ` python eval.py miniimagenet --datapath ./data/untarred/  --model_path ckpts/miniImageNet/best-mini.ckpt --eval_ways 5 --eval_support_shots 5 --sup_finetune --ft_freeze_backbone`
 
 
 # Citation
