@@ -26,7 +26,6 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 
-# TODO: idk why this does not work nicely, it gives -ve values
 def re_ranking(probFea, galFea, k1, k2, lambda_value, MemorySave=False, Minibatch=2000):
     query_num = probFea.shape[0]
     all_num = query_num + galFea.shape[0]
@@ -106,7 +105,6 @@ def re_ranking(probFea, galFea, k1, k2, lambda_value, MemorySave=False, Minibatc
     final_dist = final_dist[:query_num, query_num:]
     return final_dist
 
-# TODO: and this gives NAN for any lambda > 0
 def re_ranking2(input_feature_source, input_feature, k1=20, k2=6, lambda_value=0.1):
     all_num = input_feature.shape[0]
     feat = input_feature.astype(np.float16)
