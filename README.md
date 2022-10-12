@@ -72,7 +72,7 @@ The algorithm consists of the following major high-level components:
 
 # Contact
 
-Corresponding author: Ojas Kishore Shirekar (<o.k.shirekar@student.tudelft.nl>)
+Corresponding author: Ojas Kishore Shirekar (<ojas.shirekar@gmail.com>)
 
 # References
 
