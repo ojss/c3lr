@@ -1,7 +1,8 @@
- <!-- TODO: Superscript C3LR -->
 # This Repo holds the code for C<sup>3</sup>LR
 
-This is the official repository for [Self-Supervised Class-Cognizant Few-Shot Classification](https://arxiv.org/abs/2202.08149) (Ojas Kishore Shirekar, Hadi Jamali-Rad).
+## This is the official repository for [Self-Supervised Class-Cognizant Few-Shot Classification](https://arxiv.org/abs/2202.08149) (Ojas Kishore Shirekar, Hadi Jamali-Rad).
+**This paper is accepted to appear in the proceedings of [ICIP 2022](https://cmsworkshops.com/ICIP2022/papers/accepted_papers.php)**
+
 
 # Introduction
 Unsupervised learning is argued to be the dark matter of human intelligence. To build in this direction, this paper focuses on unsupervised learning from an abundance of unlabeled data followed by few-shot fine-tuning on a downstream classification task. To this aim, we extend a recent study on adopting contrastive learning for unsupervised pre-training by incorporating class-level cognizance and expanding the contrastive optimization loss to account for it. Our experimentation both in standard and cross-domain scenarios demonstrate that we not only stay current with the state-of-the-art (SoTA) in all scenarios but also sets a new SoTA in (5-way, 1 and 5-shot) settings for mini-ImageNet dataset.
