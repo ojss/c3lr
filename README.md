@@ -1,3 +1,6 @@
+[![arXiv](https://img.shields.io/badge/arXiv-2202.08149-<COLOR>.svg)](https://arxiv.org/abs/2202.08149)
+
+
 # This Repo holds the code for C<sup>3</sup>LR
 
 ## This is the official repository for [Self-Supervised Class-Cognizant Few-Shot Classification](https://arxiv.org/abs/2202.08149) (Ojas Kishore Shirekar, Hadi Jamali-Rad).
